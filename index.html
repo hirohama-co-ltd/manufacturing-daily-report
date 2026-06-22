@@ -1,0 +1,2774 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f1f5f9; margin: 0; padding: 10px; user-select: none; -webkit-user-select: none; color: #1e293b; box-sizing: border-box; }
+    
+    /* ライン選択 & 固定ヘッダー */
+    .header-container { background: #1e3a8a; color: white; padding: 8px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .header-title { font-weight: bold; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+    .line-select-box, .date-select-box { font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px; border: 2px solid #cbd5e1; background: #ffffff; color: #1e3a8a; cursor: pointer; }
+    .date-badge { font-size: 11px; background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+    .action-btn-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .btn-report { flex: 1; min-width: 140px; background: #0f766e; color: white; border: none; padding: 12px; font-size: 0.95rem; font-weight: bold; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .btn-report-pdf { background: #7c3aed; }
+    .scan-status-indicator { font-size: 12px; background: #deff9a; color: #1a237e; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+    
+    /* タブ切り替えメニュー */
+    .tab-menu { display: flex; background: #2563eb; padding: 2px 4px; gap: 2px; border-radius: 0 0 6px 6px; margin-bottom: 8px; overflow-x: auto; }
+    .tab-btn { flex: 1; min-width: 80px; background: none; border: none; color: #bfdbfe; padding: 8px 4px; font-size: 12px; font-weight: bold; cursor: pointer; text-align: center; border-radius: 4px; transition: all 0.2s; white-space: nowrap; }
+    .tab-btn.active { background: #ffffff; color: #1e3a8a; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+    /* 各種メインコンテナ */
+    .app-container { display: none; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 12px; flex-direction: column; gap: 10px; width: 100%; box-sizing: border-box; }
+    .app-container.active { display: flex; }
+    
+    /* 点検フォーム共通スタイル */
+    .check-section { display: flex; flex-direction: column; gap: 8px; }
+    .check-title { font-size: 14px; font-weight: bold; color: #1e3a8a; border-left: 4px solid #2563eb; padding-left: 6px; margin-bottom: 4px; }
+    .check-item-row { display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; gap: 10px; }
+    .check-item-text { font-size: 13px; font-weight: bold; color: #334155; flex: 1; }
+    
+    .check-checkbox { width: 24px; height: 24px; cursor: pointer; }
+    
+    .btn-judge-toggle { font-size: 14px; font-weight: bold; padding: 8px 0; border-radius: 6px; border: none; width: 95px; text-align: center; color: white; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: background 0.15s; }
+    .btn-judge-toggle.pass { background: #10b981; }      
+    .btn-judge-toggle.fail { background: #ef4444; }      
+    .btn-judge-toggle.none { background: #94a3b8; }
+    .btn-judge-toggle.skip { background: #64748b; }
+
+    .slot-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center; }
+    .slot-btn { font-size: 12px; font-weight: bold; padding: 6px 10px; border-radius: 6px; border: 2px solid #cbd5e1; background: #fff; color: #475569; cursor: pointer; }
+    .slot-btn.active { background: #2563eb; color: #fff; border-color: #1d4ed8; }
+    .slot-btn-add { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+    .variety-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; flex-wrap: wrap; }
+    .variety-select { flex: 1; min-width: 160px; padding: 6px; font-weight: bold; border-radius: 4px; border: 2px solid #cbd5e1; }
+    .check-hint { font-size: 11px; color: #64748b; margin-bottom: 6px; }
+
+    .matrix-wrap { overflow-x: auto; width: 100%; }
+    .matrix-table { border-collapse: collapse; font-size: 11px; width: 100%; min-width: 480px; }
+    .matrix-table th, .matrix-table td { border: 1px solid #e2e8f0; padding: 6px 4px; text-align: center; }
+    .matrix-table th { background: #f1f5f9; font-weight: bold; color: #334155; position: sticky; top: 0; }
+    .matrix-table td.item-col { text-align: left; font-weight: bold; min-width: 120px; background: #fafafa; }
+    .mx-未 { background: #f8fafc; color: #94a3b8; }
+    .mx-済, .mx-合格 { background: #d1fae5; color: #065f46; font-weight: bold; }
+    .mx-不合格 { background: #fee2e2; color: #991b1b; font-weight: bold; }
+    .mx-不要 { background: #e2e8f0; color: #475569; font-weight: bold; }
+    .matrix-section-title { font-size: 13px; font-weight: bold; color: #1e3a8a; margin: 12px 0 6px 0; }
+
+    .modal-warn-title { font-size: 16px; font-weight: bold; color: #b45309; }
+    .modal-warn-body { font-size: 13px; color: #334155; text-align: left; line-height: 1.5; margin: 0; }
+    .modal-warn-list { margin: 8px 0 0 16px; padding: 0; font-size: 13px; color: #991b1b; }
+    .btn-warn-ok { background: #2563eb; color: white; border: none; padding: 10px 16px; font-weight: bold; border-radius: 6px; cursor: pointer; flex: 1; }
+    .btn-warn-skip { background: #64748b; color: white; border: none; padding: 10px 16px; font-weight: bold; border-radius: 6px; cursor: pointer; flex: 1; }
+    .btn-warn-overtime { background: #f59e0b; color: white; border: none; padding: 10px 14px; font-weight: bold; border-radius: 6px; cursor: pointer; flex: 1; }
+    .btn-warn-end { background: #10b981; color: white; border: none; padding: 10px 14px; font-weight: bold; border-radius: 6px; cursor: pointer; flex: 1; }
+    
+    .btn-value-input { background: #2563eb; color: white; border: none; padding: 8px 12px; font-size: 13px; font-weight: bold; border-radius: 6px; cursor: pointer; min-width: 95px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .btn-value-input.filled { background: #f59e0b; }
+
+    /* 日報実績専用パーツスタイル */
+    .scan-section { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .scan-input-hidden { padding: 8px; font-size: 14px; border: 2px solid #2563eb; border-radius: 4px; width: 150px; background: #fff; font-weight: bold; }
+    .current-prod-section { background: #fff7ed; border: 2px solid #ea580c; border-radius: 6px; padding: 12px; margin-bottom: 5px; }
+    .current-prod-title { font-size: 14px; font-weight: bold; color: #ea580c; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 5px; }
+    .current-prod-grid { display: flex; flex-direction: column; gap: 10px; background: #fff; padding: 10px; border-radius: 4px; border: 1px dashed #fdba74; }
+    .current-info-row { display: flex; flex-wrap: wrap; gap: 15px; font-size: 13px; font-weight: bold; color: #1e293b; }
+    .btn-defect-trigger { background: #f59e0b; color: white; border: none; padding: 6px 12px; font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+    .btn-end-prod { background: #ef4444; color: white; border: none; padding: 6px 12px; font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 4px rgba(239,68,68,0.2); }
+    .history-section { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; background: #fff; }
+    .history-title { font-size: 13px; font-weight: bold; color: #1e3a8a; margin-bottom: 6px; }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; table-layout: fixed; }
+    .history-table th { background: #f1f5f9; padding: 6px; font-weight: bold; border-bottom: 2px solid #cbd5e1; color: #475569; }
+    .history-table td { padding: 6px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; word-break: break-all; }
+    .row-first-line { background: #ffffff; }
+    .row-second-line { background: #f8fafc; }
+    .border-double-bottom { border-bottom: 2px solid #cbd5e1 !important; }
+    .timeline-chart-section { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 0; display: flex; flex-direction: column; }
+    .axis-labels-container { display: flex; width: 100%; position: relative; height: 22px; }
+    .axis-cell { flex: 1; position: relative; height: 100%; }
+    .axis-time-text { position: absolute; left: 0; bottom: 2px; transform: translateX(-50%); font-size: 11px; font-weight: bold; color: #475569; white-space: nowrap; }
+    .axis-tick-mark { position: absolute; left: 0; bottom: -10px; width: 1px; height: 6px; background: #94a3b8; }
+    .stacked-bar-container { width: 100%; box-sizing: border-box; margin-top: 4px; }
+    .stacked-bar-track { width: 100%; height: 40px; background: #e2e2e2; border-radius: 6px; position: relative; overflow: hidden; display: flex; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+    .stacked-block { position: absolute; top: 0; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: white; overflow: hidden; white-space: nowrap; text-overflow: clip; border-right: 1px solid rgba(255,255,255,0.4); box-sizing: border-box; }
+    .bg-製造 { background-color: #10b981; }
+    .bg-修理 { background-color: #ef4444; }
+    .bg-調整 { background-color: #f59e0b; }
+    .bg-未選択 { background-color: #94a3b8; }
+    .work-switch-row { display: flex; flex-direction: column; gap: 8px; text-align: left; font-size: 13px; }
+    .work-switch-field { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+    .work-switch-field label { font-weight: bold; min-width: 88px; flex-shrink: 0; color: #334155; }
+    .work-switch-field-time { align-items: flex-start; }
+    .work-time-picker-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    .work-time-picker { width: 100%; }
+    .work-time-slot-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: nowrap; width: 100%; }
+    .work-time-slot-group { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; white-space: nowrap; }
+    .work-time-slot-sep { font-size: 18px; font-weight: bold; color: #64748b; flex-shrink: 0; line-height: 36px; }
+    .work-time-slot-unit { font-size: 11px; font-weight: bold; color: #64748b; flex-shrink: 0; }
+    .time-slot-digit { width: 44px; height: 36px; padding: 0; font-size: 20px; font-weight: bold; border: 2px solid #2563eb; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; line-height: 32px; text-align: center; box-sizing: border-box; user-select: none; flex-shrink: 0; display: inline-block; }
+    .time-slot-digit:active { background: #1d4ed8; transform: scale(0.98); }
+    .work-time-picker .btn-arrow { width: 28px; height: 36px; font-size: 13px; cursor: pointer; flex-shrink: 0; padding: 0; }
+    .btn-work-sync-scan { font-size: 11px; font-weight: bold; padding: 5px 10px; border-radius: 6px; border: 2px solid #93c5fd; background: #eff6ff; color: #1d4ed8; cursor: pointer; white-space: nowrap; }
+    .btn-work-sync-scan:active { background: #dbeafe; }
+    .edit-list-section { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 5px; }
+    .edit-row { display: flex; flex-direction: column; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; box-sizing: border-box; width: 100%; gap: 6px; }
+    .edit-row-top { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 4px; }
+    .col-no { width: 35px; font-size: 11px; font-weight: bold; color: #64748b; }
+    .col-select { width: 85px; }
+    .col-time-container { display: flex; align-items: center; justify-content: center; gap: 2px; font-size: 12px; font-weight: bold; color: #1e3a8a; width: 110px; }
+    .time-clickable { padding: 2px 4px; border-radius: 4px; background: #e2e8f0; cursor: pointer; }
+    .time-clickable.selected { background: #f97316 !important; color: white !important; font-weight: bold; }
+    .btn-arrow { background: white; color: #1e293b; border: 1.5px solid #cbd5e1; width: 24px; height: 26px; font-size: 11px; font-weight: bold; border-radius: 4px; }
+    .status-select { font-size: 11px; font-weight: bold; padding: 2px; border-radius: 4px; border: 2px solid #cbd5e1; background: #94a3b8; color: white; width: 85px; text-align: center; height: 28px; }
+    .status-select.active-prod { background-color: #10b981; }
+    .status-select.active-repair { background-color: #ef4444; }
+    .status-select.active-adjust { background-color: #f59e0b; }
+    
+    /* モーダルレイヤー共通 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-content { background: white; padding: 18px; border-radius: 8px; width: 92%; max-width: 380px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 12px; text-align: center; box-sizing: border-box; }
+    .modal-title { font-size: 15px; font-weight: bold; }
+    .modal-input { padding: 8px; font-size: 22px; font-weight: bold; text-align: center; border: 2px solid #cbd5e1; border-radius: 6px; width: 85%; margin: 0 auto; background: #f8fafc; }
+    .modal-btns { display: flex; gap: 10px; justify-content: center; margin-top: 5px; }
+    .btn-modal-confirm { background: #10b981; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+    .btn-modal-cancel { background: #64748b; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+    .numpad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 85%; margin: 5px auto 0 auto; }
+    .btn-num { background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 18px; font-weight: bold; color: #1e293b; padding: 12px 0; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 0 #cbd5e1; }
+    .btn-num:active { background: #e2e8f0; transform: translateY(2px); box-shadow: none; }
+    .btn-num-clear { background: #fed7d7; border-color: #fca5a5; color: #991b1b; box-shadow: 0 2px 0 #fca5a5; }
+    .btn-num-clear:active { background: #fecaca; box-shadow: none; }
+    .defect-badge-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; width: 100%; }
+    .defect-badge { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 4px; }
+    
+    /* 👥 作業者表示用のバッジスタイル */
+    .worker-badge-list { display: flex; flex-wrap: wrap; gap: 4px; }
+    .worker-badge { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 2px; }
+
+    .loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.7); display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:bold; color:#1e3a8a; z-index:999; }
+    .btn-save { background: #1e3a8a; color: white; border: none; padding: 12px; font-size: 1.05rem; font-weight: bold; border-radius: 6px; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 10px;}
+  </style>
+</head>
+<body>
+
+  <div id="loading" class="loading-overlay">⏳ システム初期化中...</div>
+
+  <div class="header-container">
+    <div class="header-title">
+      <span>⚙️ 製造日報</span>
+      <input type="date" id="workDateSelect" class="date-select-box" tabindex="-1" onchange="onWorkDateChanged()">
+      <select id="lineNoSelect" class="line-select-box" tabindex="-1" onchange="onLineNoChanged()"></select>
+      <span id="dateViewBadge" class="date-badge" style="display:none;">過去日参照</span>
+    </div>
+    <span class="scan-status-indicator" id="scanStatus">スキャン受付中</span>
+  </div>
+
+  <div class="tab-menu">
+    <button id="btnTabProduction" class="tab-btn active" onclick="switchTab('production')">📋 日報実績</button>
+    <button id="btnTabDailyCheck" class="tab-btn" onclick="switchTab('dailyCheck')">🔍 日常点検</button>
+    <button id="btnTabSensorCheck" class="tab-btn" onclick="switchTab('sensorCheck')">⚡ センサチェック</button>
+    <button id="btnTabSwitchoverCheck" class="tab-btn" onclick="switchTab('switchoverCheck')">🔄 切替点検</button>
+    <button id="btnTabRegularCheck" class="tab-btn" onclick="switchTab('regularCheck')">⏱️ 定時検査</button>
+    <button id="btnTabMatrix" class="tab-btn" onclick="switchTab('matrix')">📊 実施状況</button>
+  </div>
+
+  <div id="containerProduction" class="app-container active">
+    <div class="scan-section">
+      <div style="display:flex; flex-direction:column; gap:2px;">
+        <span style="font-size:10px; color:#2563eb; font-weight:bold;">ラベル / 作業QR / 作業者QR (常時待機)</span>
+        <input type="text" id="barcodeHiddenInput" class="scan-input-hidden" placeholder="スキャンしてください" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="1" aria-label="バーコードスキャン">
+      </div>
+    </div>
+
+    <div class="current-prod-section">
+      <div class="current-prod-title">
+        <span>⚡ 現在製造中の品種</span>
+        <div style="display:flex; gap:5px;">
+          <button id="defectTriggerBtn" class="btn-defect-trigger" style="display:none;" onclick="openDefectScanModal()">⚠️ 不良入力</button>
+          <button id="endProdBtn" class="btn-end-prod" style="display:none;" onclick="openEndModal()">🛑 製造終了（確定）</button>
+        </div>
+      </div>
+      <div id="currentProdDisplay" class="current-prod-grid">
+        <span style="color:#64748b; font-size:12px; text-align:center;">製品ラベルをスキャンしてください。</span>
+      </div>
+    </div>
+
+    <div class="history-section">
+      <div class="history-title" id="historyTitle">📅 製造実績データ</div>
+      <div style="max-height:220px; overflow-y:auto; width:100%; border: 1px solid #e2e8f0; border-radius: 4px;">
+        <table class="history-table">
+          <tbody id="historyTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="timeline-chart-section">
+      <div style="padding: 0 20px;"><div class="axis-labels-container" id="timelineAxis"></div></div>
+      <div class="stacked-bar-container" style="padding: 0 20px;"><div class="stacked-bar-track" id="stackedBar"></div></div>
+    </div>
+
+    <div class="edit-list-section" id="editListContainer"></div>
+  </div>
+
+  <div id="containerDailyCheck" class="app-container">
+    <div class="check-section">
+      <div class="check-title" id="dailyCheckLineTitle">日常点検項目</div>
+      <div id="dailyCheckListArea"></div>
+    </div>
+  </div>
+
+  <div id="containerSensorCheck" class="app-container">
+    <div class="check-section">
+      <div class="check-title" id="sensorCheckLineTitle">センサ動作確認</div>
+      <div class="variety-row">
+        <label style="font-weight:bold; color:#0369a1;">品種（手動選択）:</label>
+        <select id="varietySelect" class="variety-select" onchange="onVarietySelectionChanged()"></select>
+      </div>
+      <p class="check-hint">午前・午後・品切替ごとに実施。実施時刻は厳密でなく、記録は参考用です。</p>
+      <div class="slot-bar" id="sensorSlotBar"></div>
+      <div id="sensorCheckListArea"></div>
+    </div>
+  </div>
+
+  <div id="containerSwitchoverCheck" class="app-container">
+    <div class="check-section">
+      <div class="check-title" id="switchoverCheckLineTitle">切替点検項目</div>
+      <p class="check-hint">品種切替のたびに実施。新しい製品ラベル読込時に案内されます。</p>
+      <div class="slot-bar" id="switchoverSlotBar"></div>
+      <div id="switchoverCheckListArea"></div>
+    </div>
+  </div>
+
+  <div id="containerRegularCheck" class="app-container">
+    <div class="check-section">
+      <div class="check-title" id="regularCheckLineTitle">定時（パトロール）検査項目</div>
+      <div class="variety-row">
+        <label style="font-weight:bold; color:#0369a1;">品種（手動選択）:</label>
+        <select id="varietySelectRegular" class="variety-select" onchange="onVarietySelectionChanged()"></select>
+      </div>
+      <p class="check-hint">始業・10時・13時等の枠で記録（実際の実施時刻はずれても可）。</p>
+      <div class="slot-bar" id="regularSlotBar"></div>
+      <div id="regularCheckListArea"></div>
+    </div>
+  </div>
+
+  <div id="containerMatrix" class="app-container">
+    <div class="check-section">
+      <div class="check-title" id="matrixLineTitle">点検・検査 実施状況マトリクス</div>
+      <p class="check-hint" id="matrixVarietyHint"></p>
+      <div id="matrixContentArea"></div>
+    </div>
+  </div>
+
+  <button class="btn-save" onclick="saveData()">💾 修正内容をスプレッドシートに確定保存する</button>
+  <span id="unsavedBadge" style="display:none; font-size:11px; font-weight:bold; color:#b91c1c; margin-left:8px;">未保存あり（ブラウザに下書き保存済み）</span>
+  <div class="action-btn-row">
+    <button class="btn-report" onclick="exportReportSheet()">📊 集計シートを作成</button>
+    <button class="btn-report btn-report-pdf" onclick="exportReportPdf()">📄 PDFをダウンロード</button>
+  </div>
+
+
+  <div id="endModal" class="modal-overlay">
+    <div class="modal-content" style="max-width:340px;">
+      <div class="modal-title" style="color: #ef4444;">🏁 製造終了：終ケースNoの確定</div>
+      <p style="font-size:13px; font-weight:bold; margin:0; color:#475569;">終了ケースのラベルをスキャンするか、<br>以下のテンキーで入力してください。</p>
+      <input type="number" id="modalEndCaseInput" class="modal-input" placeholder="終ケースNo" readonly>
+      <div class="numpad-grid">
+        <button class="btn-num" onclick="pressEndCaseNum(1)">1</button>
+        <button class="btn-num" onclick="pressEndCaseNum(2)">2</button>
+        <button class="btn-num" onclick="pressEndCaseNum(3)">3</button>
+        <button class="btn-num" onclick="pressEndCaseNum(4)">4</button>
+        <button class="btn-num" onclick="pressEndCaseNum(5)">5</button>
+        <button class="btn-num" onclick="pressEndCaseNum(6)">6</button>
+        <button class="btn-num" onclick="pressEndCaseNum(7)">7</button>
+        <button class="btn-num" onclick="pressEndCaseNum(8)">8</button>
+        <button class="btn-num" onclick="pressEndCaseNum(9)">9</button>
+        <button class="btn-num btn-num-clear" onclick="pressEndCaseClear()">C</button>
+        <button class="btn-num" onclick="pressEndCaseNum(0)">0</button>
+        <button class="btn-num btn-num-clear" style="background:#e2e8f0; border-color:#cbd5e1; color:#475569;" onclick="pressEndCaseBackspace()">⌫</button>
+      </div>
+      <button style="width: 85%; margin: 4px auto 0 auto; background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; font-size: 11px; font-weight: bold; padding: 6px; border-radius: 4px; cursor: pointer;" onclick="copyStartCaseToEndCase()">
+        📋 始ケースと同じ番号を入力欄にコピー
+      </button>
+      <div class="modal-btns" style="margin-top:5px;">
+        <button class="btn-modal-cancel" onclick="closeEndModal()">戻る</button>
+        <button class="btn-modal-confirm" onclick="confirmEndProduction()">確定して実績へ</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="defectScanModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-title" style="color: #d97706;">⚠️ 不良QRコードのスキャン待機</div>
+      <p style="font-size:13px; font-weight:bold; margin:0; color:#475569;">不良ラベルのQRコードをスキャンしてください。</p>
+      <input type="text" id="modalDefectCodeInput" class="modal-input" placeholder="QRをスキャン..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="none">
+      <div class="modal-btns" style="margin-top:10px;">
+        <button class="btn-modal-cancel" onclick="closeDefectScanModal()">止める（戻る）</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="defectQtyModal" class="modal-overlay">
+    <div class="modal-content" style="border: 3px solid #ef4444; max-width:340px;">
+      <div class="modal-title" style="color: #b91c1c; font-size:16px;">🔢 不良数量の入力</div>
+      <p id="targetDefectLabel" style="font-size:15px; font-weight:bold; margin:0; color:#1e293b; background:#fee2e2; padding:6px; border-radius:4px;">不良種類：???</p>
+      <input type="number" id="modalDefectQtyInput" class="modal-input" min="1" value="1" readonly>
+      <div class="numpad-grid">
+        <button class="btn-num" onclick="pressQtyNum(1)">1</button>
+        <button class="btn-num" onclick="pressQtyNum(2)">2</button>
+        <button class="btn-num" onclick="pressQtyNum(3)">3</button>
+        <button class="btn-num" onclick="pressQtyNum(4)">4</button>
+        <button class="btn-num" onclick="pressQtyNum(5)">5</button>
+        <button class="btn-num" onclick="pressQtyNum(6)">6</button>
+        <button class="btn-num" onclick="pressQtyNum(7)">7</button>
+        <button class="btn-num" onclick="pressQtyNum(8)">8</button>
+        <button class="btn-num" onclick="pressQtyNum(9)">9</button>
+        <button class="btn-num btn-num-clear" onclick="pressQtyClear()">C</button>
+        <button class="btn-num" onclick="pressQtyNum(0)">0</button>
+        <button class="btn-num btn-num-clear" style="background:#e2e8f0; border-color:#cbd5e1; color:#475569;" onclick="pressQtyBackspace()">⌫</button>
+      </div>
+      <div class="modal-btns" style="margin-top:5px;">
+        <button class="btn-modal-cancel" style="background:#64748b; padding:8px 16px;" onclick="cancelDefectQty()">取消</button>
+        <button class="btn-modal-confirm" style="background:#ef4444; font-size:14px; padding:8px 24px; flex:1;" onclick="confirmDefectQty()">確定して登録</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="regularValueModal" class="modal-overlay">
+    <div class="modal-content" style="border: 3px solid #2563eb; max-width:340px;">
+      <div class="modal-title" style="color: #1e3a8a; font-size:16px;">🔢 測定値の入力</div>
+      <p id="targetRegularLabel" style="font-size:13px; font-weight:bold; margin:0; color:#1e293b; background:#eff6ff; padding:6px; border-radius:4px; text-align:left;">項目：???</p>
+      <div style="display:flex; align-items:center; justify-content:center; gap:6px; width:85%; margin:0 auto;">
+        <input type="text" id="modalRegularValueInput" class="modal-input" style="flex:1; font-size:24px;" readonly>
+        <span id="modalRegularUnitLabel" style="font-size:20px; font-weight:bold; color:#475569;"></span>
+      </div>
+      <div class="numpad-grid">
+        <button class="btn-num" onclick="pressRegNum(1)">1</button>
+        <button class="btn-num" onclick="pressRegNum(2)">2</button>
+        <button class="btn-num" onclick="pressRegNum(3)">3</button>
+        <button class="btn-num" onclick="pressRegNum(4)">4</button>
+        <button class="btn-num" onclick="pressRegNum(5)">5</button>
+        <button class="btn-num" onclick="pressRegNum(6)">6</button>
+        <button class="btn-num" onclick="pressRegNum(7)">7</button>
+        <button class="btn-num" onclick="pressRegNum(8)">8</button>
+        <button class="btn-num" onclick="pressRegNum(9)">9</button>
+        <button class="btn-num btn-num-clear" onclick="pressRegClear()">C</button>
+        <button class="btn-num" onclick="pressRegNum(0)">0</button>
+        <button class="btn-num" onclick="pressRegNum('.')">.</button>
+      </div>
+      <div class="modal-btns" style="margin-top:5px;">
+        <button class="btn-modal-cancel" onclick="closeRegularValueModal()">取消</button>
+        <button class="btn-modal-confirm" style="background:#2563eb; flex:1;" onclick="confirmRegularValue()">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="regularAlertModal" class="modal-overlay">
+    <div class="modal-content" style="border: 3px solid #f59e0b; max-width: 400px;">
+      <div class="modal-warn-title" id="regularAlertTitle">⏱️ 定時検査のお知らせ</div>
+      <p class="modal-warn-body" id="regularAlertBody"></p>
+      <ul class="modal-warn-list" id="regularAlertItemList"></ul>
+      <div class="modal-btns" id="regularAlertBtnArea" style="flex-wrap: wrap; margin-top: 12px;"></div>
+    </div>
+  </div>
+
+  <div id="workSwitchModal" class="modal-overlay">
+    <div class="modal-content" style="border: 3px solid #2563eb; max-width: 440px;">
+      <div class="modal-title" style="color: #1e3a8a;">📋 作業切替（QR読み取り）</div>
+      <p class="modal-warn-body" style="text-align:center;">読み取り時刻: <strong id="workScanTimeLabel">--:--</strong></p>
+      <div class="work-switch-row">
+        <div class="work-switch-field">
+          <label>前作業</label>
+          <span id="workPrevStatusLabel" style="flex:1;font-weight:bold;">—</span>
+        </div>
+        <div class="work-switch-field work-switch-field-time">
+          <label>前作業 終了</label>
+          <div class="work-time-picker-col">
+            <div class="work-time-picker" id="workPrevEndPicker" data-picker="prevEnd">
+              <div class="work-time-slot-row">
+                <div class="work-time-slot-group">
+                  <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('prevEnd','hour',-1)">◀</button>
+                  <span class="time-slot-digit" id="workPrevEndHour" title="タップで1時間進む" onclick="stepWorkPickerTime('prevEnd','hour',1)">08</span>
+                  <span class="work-time-slot-unit">時</span>
+                  <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('prevEnd','hour',1)">▶</button>
+                </div>
+                <span class="work-time-slot-sep">:</span>
+                <div class="work-time-slot-group">
+                  <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('prevEnd','min',-1)">◀</button>
+                  <span class="time-slot-digit" id="workPrevEndMin" title="タップで5分進む" onclick="stepWorkPickerTime('prevEnd','min',1)">30</span>
+                  <span class="work-time-slot-unit">分</span>
+                  <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('prevEnd','min',1)">▶</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="border-top:1px dashed #cbd5e1; margin:4px 0;"></div>
+        <div class="work-switch-field">
+          <label>新作業</label>
+          <span id="workNewStatusLabel" style="flex:1;font-weight:bold;color:#1d4ed8;">—</span>
+        </div>
+        <div class="work-switch-field work-switch-field-time">
+          <label>新作業 開始</label>
+          <div class="work-time-picker-col">
+            <div class="work-time-picker" id="workNewStartPicker" data-picker="newStart">
+              <div class="work-time-slot-row">
+                <div class="work-time-slot-group">
+                  <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('newStart','hour',-1)">◀</button>
+                  <span class="time-slot-digit" id="workNewStartHour" title="タップで1時間進む" onclick="stepWorkPickerTime('newStart','hour',1)">08</span>
+                  <span class="work-time-slot-unit">時</span>
+                  <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('newStart','hour',1)">▶</button>
+                </div>
+                <span class="work-time-slot-sep">:</span>
+                <div class="work-time-slot-group">
+                  <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('newStart','min',-1)">◀</button>
+                  <span class="time-slot-digit" id="workNewStartMin" title="タップで5分進む" onclick="stepWorkPickerTime('newStart','min',1)">30</span>
+                  <span class="work-time-slot-unit">分</span>
+                  <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('newStart','min',1)">▶</button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn-work-sync-scan" onclick="syncNewStartToPrevEnd()">前作業終了に同期</button>
+          </div>
+        </div>
+        <div class="work-switch-field work-switch-field-time">
+          <label>新作業 終了</label>
+          <div class="work-time-picker" id="workNewEndPicker" data-picker="newEnd">
+            <div class="work-time-slot-row">
+              <div class="work-time-slot-group">
+                <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('newEnd','hour',-1)">◀</button>
+                <span class="time-slot-digit" id="workNewEndHour" title="タップで1時間進む" onclick="stepWorkPickerTime('newEnd','hour',1)">08</span>
+                <span class="work-time-slot-unit">時</span>
+                <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('newEnd','hour',1)">▶</button>
+              </div>
+              <span class="work-time-slot-sep">:</span>
+              <div class="work-time-slot-group">
+                <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('newEnd','min',-1)">◀</button>
+                <span class="time-slot-digit" id="workNewEndMin" title="タップで5分進む" onclick="stepWorkPickerTime('newEnd','min',1)">45</span>
+                <span class="work-time-slot-unit">分</span>
+                <button type="button" class="btn-arrow" onclick="stepWorkPickerTime('newEnd','min',1)">▶</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:#64748b;margin:0;">※時・分の数字の左右 ◀ ▶ で調整（時は1時間・分は5分単位）。タイムライン編集と同じ操作です。</p>
+      <div class="modal-btns">
+        <button type="button" class="btn-modal-cancel" onclick="closeWorkSwitchModal()">取消</button>
+        <button type="button" class="btn-modal-confirm" style="background:#2563eb;" onclick="confirmWorkSwitchModal()">作業を反映</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="switchoverPromptModal" class="modal-overlay">
+    <div class="modal-content" style="border: 3px solid #db2777; max-width: 400px;">
+      <div class="modal-title" style="color: #9d174d;">🔄 切替点検の確認</div>
+      <p class="modal-warn-body" id="switchoverPromptBody">新しい製品ラベルを読み込みました。切替点検を実施しますか？</p>
+      <p class="modal-warn-body" style="font-size:12px; color:#64748b;" id="switchoverPromptProductInfo"></p>
+      <div class="modal-btns">
+        <button type="button" class="btn-modal-confirm" style="background:#db2777; flex:1;" onclick="confirmSwitchoverPrompt(true)">実施する</button>
+        <button type="button" class="btn-modal-cancel" style="flex:1;" onclick="confirmSwitchoverPrompt(false)">不要（スキップ）</button>
+      </div>
+      <button type="button" class="btn-modal-cancel" style="width:100%; margin-top:4px; font-size:12px;" onclick="cancelSwitchoverPrompt()">取消（読込をやめる）</button>
+    </div>
+  </div>
+
+  <div id="switchoverCheckModal" class="modal-overlay">
+    <div class="modal-content" style="border: 3px solid #db2777; max-width: 420px; max-height: 85vh; overflow-y: auto;">
+      <div class="modal-title" style="color: #9d174d;">🔄 切替点検の実施</div>
+      <p class="modal-warn-body" id="switchoverCheckModalHint" style="text-align:left; font-size:12px;"></p>
+      <div id="switchoverCheckModalList"></div>
+      <div class="modal-btns">
+        <button type="button" class="btn-modal-cancel" onclick="closeSwitchoverCheckModal()">戻る</button>
+        <button type="button" class="btn-modal-confirm" style="background:#db2777; flex:1;" onclick="confirmSwitchoverCheckModal()">点検完了</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="regularSaveWarnModal" class="modal-overlay">
+    <div class="modal-content" style="border: 3px solid #ef4444; max-width: 400px;">
+      <div class="modal-warn-title" style="color:#b91c1c;">⚠️ 保存できません</div>
+      <p class="modal-warn-body">定時検査に<strong>未実施</strong>の項目があります。内容を修正してから保存してください。</p>
+      <ul class="modal-warn-list" id="regularSaveWarnList"></ul>
+      <div class="modal-btns">
+        <button type="button" class="btn-warn-ok" style="flex:1;" onclick="closeRegularSaveWarnModal(true)">定時検査タブへ</button>
+        <button type="button" class="btn-modal-cancel" onclick="closeRegularSaveWarnModal(false)">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    // 状態管理
+    let currentTab = 'production';
+    let timelineBlocks = [];
+    let productRows = [];
+    let currentActiveJob = null;
+    let lineCheckData = {};
+    let currentRegEditIndex = null;
+    let selectedWorkDate = '';
+    let isViewingToday = true;
+    let barcodeConfig = {
+      productCodeStart: 10, productCodeLength: 6,
+      caseNoStart: 7, caseNoLength: 3
+    };
+    let checkSlotConstants = { sensorSlotsBase: ['午前', '午後'], regularSlots: ['始業', '10時', '13時', '15時', '17時', '終業'], hinSwitchPrefix: '品切', switchoverPrefix: '切替' };
+    let pendingProductScan = null;
+    let pendingSwitchoverRoundPrepared = false;
+    let activeSwitchoverSlot = '切替1';
+    let switchoverModalEditSlot = null;
+    let workMasterList = [];
+    let pendingWorkSwitch = null;
+    let activeSensorSlot = '午前';
+    let activeRegularSlot = '始業';
+    let regularAlertStateByLine = {};
+    let regularAlertTimerId = null;
+    let regularAlertRecheckTimers = {};
+    /** このセッションを開いた時刻（分）。これより前に過ぎた定時締切は遡及警告しない */
+    let regularAlertSessionStartMin = null;
+    let pendingRegularAlertSlot = null;
+    const REGULAR_ALERT_SNOOZE_MS = 10 * 60 * 1000;
+    const DRAFT_STORAGE_PREFIX = 'nippou_app_draft_v1_';
+    const INIT_CACHE_KEY = 'nippou_init_cache_v1';
+    const INIT_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+    let hasUnsavedChanges = false;
+    let isRestoringFromServer = false;
+    let isApplyingDraft = false;
+    let draftBackupTimer = null;
+    let periodicDraftTimerId = null;
+
+    const REGULAR_TIMED_ALERTS = [
+      { slot: '10時', triggerMin: 10 * 60 + 20, label: '10時20分' },
+      { slot: '13時', triggerMin: 13 * 60 + 20, label: '13時20分' },
+      { slot: '15時', triggerMin: 15 * 60 + 20, label: '15時20分' }
+    ];
+    const REGULAR_SLOT_17 = '17時';
+    const REGULAR_TRIGGER_17 = 16 * 60 + 50;
+
+    const START_AXIS_MIN = 7 * 60 + 30; 
+    const END_AXIS_MIN = 21 * 60;       
+    const TOTAL_DURATION = END_AXIS_MIN - START_AXIS_MIN;
+    const MIN_TIMELINE_BLOCK_GAP = 5;
+
+    let selectedTargetMap = {};
+    let autoFocusBlockTimer = null;
+    let isAutoFocusEnabled = true;
+    let activeModalState = "none";
+    let scanInFlight = false;
+    let scanCommitTimer = null;
+    let scanImeComposing = false;
+    let temporalDefectName = ""; 
+    let isFirstKeyInQty = true; 
+    let isFirstKeyInEndCase = true; 
+
+    function romanize(num) {
+      const circles = ["", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
+      return circles[num] || `(${num})`;
+    }
+
+    function getSelectedWorkDate() {
+      const el = document.getElementById('workDateSelect');
+      return el ? el.value : selectedWorkDate;
+    }
+
+    function todayDateString() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function saveInitCache_(res) {
+      if (!res) return;
+      try {
+        localStorage.setItem(INIT_CACHE_KEY, JSON.stringify({
+          ts: Date.now(),
+          lineList: res.lineList || [],
+          workMasterList: res.workMasterList || [],
+          barcodeConfig: res.barcodeConfig || null,
+          checkSlotConstants: res.checkSlotConstants || null
+        }));
+      } catch (e) { /* ignore */ }
+    }
+
+    function applyInitCache_() {
+      try {
+        const raw = localStorage.getItem(INIT_CACHE_KEY);
+        if (!raw) return false;
+        const c = JSON.parse(raw);
+        if (!c.ts || Date.now() - c.ts > INIT_CACHE_MAX_AGE_MS) return false;
+
+        if (c.barcodeConfig) barcodeConfig = c.barcodeConfig;
+        if (c.checkSlotConstants) checkSlotConstants = c.checkSlotConstants;
+        if (c.workMasterList) workMasterList = c.workMasterList;
+
+        if (c.lineList && c.lineList.length > 0) {
+          const selectBox = document.getElementById('lineNoSelect');
+          if (selectBox) {
+            const prev = selectBox.value;
+            selectBox.innerHTML = c.lineList.map(line =>
+              `<option value="${line}">${line}</option>`
+            ).join('');
+            if (prev && c.lineList.includes(prev)) selectBox.value = prev;
+          }
+        }
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function extractCaseNoFromLabelClient(raw) {
+      const s = String(raw || '').trim();
+      if (!s || !barcodeConfig.caseNoStart) return s || '1';
+      const start = barcodeConfig.caseNoStart - 1;
+      const len = barcodeConfig.caseNoLength || 3;
+      if (s.length < start + len) return s;
+      const part = s.substring(start, start + len);
+      const n = parseInt(part, 10);
+      return String(isNaN(n) ? 1 : (n || 1));
+    }
+
+    function isFullProductLabel(val) {
+      const s = String(val || '').trim();
+      const need = (barcodeConfig.caseNoStart || 0) + (barcodeConfig.caseNoLength || 0) - 1;
+      return s.length >= need;
+    }
+
+    function updateDateViewBadge() {
+      const badge = document.getElementById('dateViewBadge');
+      const title = document.getElementById('historyTitle');
+      const dateStr = getSelectedWorkDate();
+      if (title) title.innerText = `📅 ${dateStr} の製造実績データ`;
+      if (badge) badge.style.display = isViewingToday ? 'none' : 'inline';
+    }
+
+    function getDraftStorageKey(workDate, lineNo) {
+      return DRAFT_STORAGE_PREFIX + (workDate || '') + '_' + (lineNo || '');
+    }
+
+    function updateUnsavedBadge_() {
+      const el = document.getElementById('unsavedBadge');
+      if (el) el.style.display = hasUnsavedChanges ? 'inline' : 'none';
+    }
+
+    function buildDraftSnapshot_() {
+      return {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        workDate: getSelectedWorkDate(),
+        lineNo: document.getElementById('lineNoSelect') ? document.getElementById('lineNoSelect').value : '',
+        timelineBlocks: timelineBlocks,
+        productRows: productRows,
+        currentActiveJob: currentActiveJob,
+        lineCheckData: lineCheckData
+      };
+    }
+
+    function persistDraftToLocal_() {
+      const workDate = getSelectedWorkDate();
+      const lineNo = document.getElementById('lineNoSelect') ? document.getElementById('lineNoSelect').value : '';
+      if (!workDate || !lineNo) return;
+      try {
+        localStorage.setItem(getDraftStorageKey(workDate, lineNo), JSON.stringify(buildDraftSnapshot_()));
+      } catch (e) { /* 容量超過等 */ }
+    }
+
+    function clearDraftFromLocal_(workDate, lineNo) {
+      try {
+        localStorage.removeItem(getDraftStorageKey(workDate || getSelectedWorkDate(), lineNo || (document.getElementById('lineNoSelect') && document.getElementById('lineNoSelect').value)));
+      } catch (e) { /* ignore */ }
+    }
+
+    function scheduleDraftBackup_() {
+      if (draftBackupTimer) clearTimeout(draftBackupTimer);
+      draftBackupTimer = setTimeout(function() {
+        draftBackupTimer = null;
+        if (hasUnsavedChanges) persistDraftToLocal_();
+      }, 2000);
+    }
+
+    function markUnsavedChanges_() {
+      if (isRestoringFromServer || isApplyingDraft) return;
+      hasUnsavedChanges = true;
+      updateUnsavedBadge_();
+      scheduleDraftBackup_();
+    }
+
+    function applyDraftSnapshot_(draft) {
+      if (!draft) return;
+      isApplyingDraft = true;
+      const preservedSwitchoverMaster = {};
+      Object.keys(lineCheckData || {}).forEach(function(k) {
+        if (lineCheckData[k].switchoverMasterItems && lineCheckData[k].switchoverMasterItems.length) {
+          preservedSwitchoverMaster[k] = lineCheckData[k].switchoverMasterItems.slice();
+        }
+      });
+      timelineBlocks = normalizeTimelineBlocksClient(draft.timelineBlocks || []);
+      normalizeLegacyCompletedTimeline_(timelineBlocks, draft.productRows || []);
+      timelineBlocks = normalizeTimelineBlocksClient(timelineBlocks);
+      productRows = draft.productRows || [];
+      currentActiveJob = draft.currentActiveJob || null;
+      lineCheckData = draft.lineCheckData || {};
+      Object.keys(preservedSwitchoverMaster).forEach(function(k) {
+        const b = ensureLineBundle(k);
+        if (!b.switchoverMasterItems || !b.switchoverMasterItems.length) {
+          b.switchoverMasterItems = preservedSwitchoverMaster[k];
+        }
+      });
+      isApplyingDraft = false;
+      hasUnsavedChanges = true;
+      updateUnsavedBadge_();
+      renderAxis();
+      onLineNoChanged();
+      updateUI();
+      refreshVarietySelectOptions();
+    }
+
+    function tryOfferDraftRestore_(workDate, lineNo) {
+      if (!workDate || !lineNo) return;
+      let raw;
+      try {
+        raw = localStorage.getItem(getDraftStorageKey(workDate, lineNo));
+      } catch (e) { return; }
+      if (!raw) return;
+      let draft;
+      try {
+        draft = JSON.parse(raw);
+      } catch (e) {
+        clearDraftFromLocal_(workDate, lineNo);
+        return;
+      }
+      const when = draft.savedAt ? new Date(draft.savedAt).toLocaleString('ja-JP') : '不明';
+      if (!confirm('この作業日・ラインに、ブラウザに保存された下書きがあります（' + when + '）。\n復元しますか？\n\n「キャンセル」でサーバーから読み込んだ内容を使います。')) {
+        return;
+      }
+      applyDraftSnapshot_(draft);
+    }
+
+    function onWorkDateChanged() {
+      if (hasUnsavedChanges && !confirm('作業日を切り替えると、画面上の未保存データは破棄されます。よろしいですか？')) {
+        document.getElementById('workDateSelect').value = selectedWorkDate;
+        return;
+      }
+      loadInitialData();
+    }
+
+    // タブ切り替え
+    function switchTab(tabName) {
+      currentTab = tabName;
+      if (tabName === 'production') {
+        setTimeout(function() { focusBarcodeScan(true); }, 0);
+      }
+      
+      document.getElementById('btnTabProduction').classList.remove('active');
+      document.getElementById('btnTabDailyCheck').classList.remove('active');
+      document.getElementById('btnTabSensorCheck').classList.remove('active');
+      document.getElementById('btnTabSwitchoverCheck').classList.remove('active');
+      document.getElementById('btnTabRegularCheck').classList.remove('active');
+      
+      document.getElementById('containerProduction').classList.remove('active');
+      document.getElementById('containerDailyCheck').classList.remove('active');
+      document.getElementById('containerSensorCheck').classList.remove('active');
+      document.getElementById('containerSwitchoverCheck').classList.remove('active');
+      document.getElementById('containerRegularCheck').classList.remove('active');
+      document.getElementById('containerMatrix').classList.remove('active');
+      document.getElementById('btnTabMatrix').classList.remove('active');
+      
+      if (tabName === 'production') {
+        document.getElementById('btnTabProduction').classList.add('active');
+        document.getElementById('containerProduction').classList.add('active');
+        focusBarcodeScan();
+      } else if (tabName === 'matrix') {
+        document.getElementById('btnTabMatrix').classList.add('active');
+        document.getElementById('containerMatrix').classList.add('active');
+        renderMatrixView();
+      } else {
+        const cap = tabName.charAt(0).toUpperCase() + tabName.slice(1);
+        document.getElementById('btnTab' + cap).classList.add('active');
+        document.getElementById('container' + cap).classList.add('active');
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    }
+
+    function nowTimeStr() {
+      const d = new Date();
+      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    /** タイムライン用：現在時刻を5分単位に丸めた HH:mm */
+    function nowTimeStrForTimeline_() {
+      const raw = timeToMin(nowTimeStr());
+      return minToTime(isNaN(raw) ? START_AXIS_MIN : raw);
+    }
+
+    function ensureLineBundle(lineKey) {
+      if (!lineCheckData[lineKey]) {
+        lineCheckData[lineKey] = {
+          daily: [], sensorBySlot: { '午前': [], '午後': [], '品切1': [] },
+          regularBySlot: {}, switchoverBySlot: {}, hinSwitchCount: 1, switchoverCount: 0,
+          varietySelection: '未選択'
+        };
+        checkSlotConstants.regularSlots.forEach(s => { lineCheckData[lineKey].regularBySlot[s] = []; });
+      }
+      if (!lineCheckData[lineKey].sensorBySlot) lineCheckData[lineKey].sensorBySlot = { '午前': [], '午後': [], '品切1': [] };
+      if (!lineCheckData[lineKey].regularBySlot) {
+        lineCheckData[lineKey].regularBySlot = {};
+        checkSlotConstants.regularSlots.forEach(s => { lineCheckData[lineKey].regularBySlot[s] = []; });
+      }
+      if (!lineCheckData[lineKey].hinSwitchCount) lineCheckData[lineKey].hinSwitchCount = 1;
+      if (!lineCheckData[lineKey].switchoverBySlot) lineCheckData[lineKey].switchoverBySlot = {};
+      if (lineCheckData[lineKey].switchoverCount === undefined) lineCheckData[lineKey].switchoverCount = 0;
+      return lineCheckData[lineKey];
+    }
+
+    function getSwitchoverMasterItems_(bundle) {
+      if (bundle.switchoverMasterItems && bundle.switchoverMasterItems.length) {
+        return bundle.switchoverMasterItems.slice();
+      }
+      const fromSlot = bundle.switchoverBySlot && bundle.switchoverBySlot[(checkSlotConstants.switchoverPrefix || '切替') + '1'];
+      if (fromSlot && fromSlot.length) return fromSlot.map(it => it.text);
+      return [];
+    }
+
+    function getSwitchoverSlotList(bundle) {
+      const n = Math.max(0, parseInt(bundle.switchoverCount, 10) || 0);
+      const slots = [];
+      const prefix = checkSlotConstants.switchoverPrefix || '切替';
+      for (let i = 1; i <= n; i++) slots.push(prefix + i);
+      return slots;
+    }
+
+    function ensureSwitchoverSlotItems_(bundle, slotName) {
+      if (!bundle.switchoverBySlot) bundle.switchoverBySlot = {};
+      if (bundle.switchoverBySlot[slotName] && bundle.switchoverBySlot[slotName].length) return bundle.switchoverBySlot[slotName];
+      const texts = getSwitchoverMasterItems_(bundle);
+      bundle.switchoverBySlot[slotName] = texts.map(t => ({ text: t, value: '-', recordedAt: '' }));
+      return bundle.switchoverBySlot[slotName];
+    }
+
+    function incrementSwitchoverRound_(lineKey) {
+      const bundle = ensureLineBundle(lineKey);
+      bundle.switchoverCount = (parseInt(bundle.switchoverCount, 10) || 0) + 1;
+      const slot = (checkSlotConstants.switchoverPrefix || '切替') + bundle.switchoverCount;
+      ensureSwitchoverSlotItems_(bundle, slot);
+      activeSwitchoverSlot = slot;
+      return slot;
+    }
+
+    function needsSwitchoverPromptOnProductScan_() {
+      return productRows.length > 0 || !!currentActiveJob;
+    }
+
+    function getSensorSlotList(bundle) {
+      const slots = (checkSlotConstants.sensorSlotsBase || ['午前', '午後']).slice();
+      const n = Math.max(1, parseInt(bundle.hinSwitchCount, 10) || 1);
+      for (let i = 1; i <= n; i++) slots.push((checkSlotConstants.hinSwitchPrefix || '品切') + i);
+      return slots;
+    }
+
+    function toggleJudgeValue(currentVal) {
+      const v = currentVal === '未選択' ? '-' : currentVal;
+      if (v === '-' || !v) return '合格';
+      if (v === '合格') return '不合格';
+      if (v === '不合格') return '不要';
+      return '-';
+    }
+
+    function judgeStatusClass(val) {
+      if (val === '合格' || val === '済') return 'pass';
+      if (val === '不合格') return 'fail';
+      if (val === '不要') return 'skip';
+      return 'none';
+    }
+
+    function judgeDisplayLabel(val) {
+      if (!val || val === '-') return '未選択';
+      return val;
+    }
+
+    function matrixCellClass(val) {
+      if (!val || val === '-' || val === '未') return 'mx-未';
+      if (val === '済' || val === '合格') return 'mx-済';
+      if (val === '不合格') return 'mx-不合格';
+      if (val === '不要') return 'mx-不要';
+      return 'mx-済';
+    }
+
+    function stampRecordedAt(item) {
+      if (item && item.value && item.value !== '-') item.recordedAt = nowTimeStr();
+    }
+
+    function getRegularAlertState(line) {
+      if (!regularAlertStateByLine[line]) {
+        regularAlertStateByLine[line] = { snoozedUntil: {}, dismissedPermanent: {}, duty17: null, shigyoAlertFired: false };
+      }
+      return regularAlertStateByLine[line];
+    }
+
+    function isRegularItemDone_(item) {
+      const v = item.value;
+      if (item.judgeType === '合否') return v && v !== '-' && v !== '未選択';
+      return v !== '' && v !== undefined && v !== null && v !== '-';
+    }
+
+    function regularSlotHasItems_(bundle, slot) {
+      return (bundle.regularBySlot[slot] || []).length > 0;
+    }
+
+    function isRegularSlotComplete_(bundle, slot) {
+      const items = bundle.regularBySlot[slot] || [];
+      if (items.length === 0) return true;
+      return items.every(isRegularItemDone_);
+    }
+
+    function getIncompleteRegularItems_(bundle, slot) {
+      return (bundle.regularBySlot[slot] || []).filter(it => !isRegularItemDone_(it));
+    }
+
+    function markRegularSlotUnneeded_(line, slot) {
+      const bundle = ensureLineBundle(line);
+      (bundle.regularBySlot[slot] || []).forEach(it => {
+        it.value = '不要';
+        it.recordedAt = nowTimeStr();
+      });
+      renderCheckLists(line);
+      renderMatrixView();
+    }
+
+    function shouldCheckRegularAlertsNow() {
+      return isViewingToday && getSelectedWorkDate() === todayDateString();
+    }
+
+    function canShowRegularAlert_(line, slot) {
+      const st = getRegularAlertState(line);
+      if (st.dismissedPermanent && st.dismissedPermanent[slot]) return false;
+      const until = st.snoozedUntil && st.snoozedUntil[slot];
+      if (until && Date.now() < until) return false;
+      return true;
+    }
+
+    function snoozeRegularAlert_(line, slot) {
+      getRegularAlertState(line).snoozedUntil[slot] = Date.now() + REGULAR_ALERT_SNOOZE_MS;
+    }
+
+    function dismissRegularAlertPermanent_(line, slot) {
+      const st = getRegularAlertState(line);
+      if (!st.dismissedPermanent) st.dismissedPermanent = {};
+      st.dismissedPermanent[slot] = true;
+      delete st.snoozedUntil[slot];
+      clearRegularAlertRecheckTimer_(line, slot);
+    }
+
+    function clearRegularAlertRecheckTimer_(line, slot) {
+      const key = line + '::' + slot;
+      if (regularAlertRecheckTimers[key]) {
+        clearTimeout(regularAlertRecheckTimers[key]);
+        delete regularAlertRecheckTimers[key];
+      }
+    }
+
+    function clearAllRegularAlertRecheckTimers_() {
+      Object.keys(regularAlertRecheckTimers).forEach(k => clearTimeout(regularAlertRecheckTimers[k]));
+      regularAlertRecheckTimers = {};
+    }
+
+    function scheduleRegularAlertRecheck_(line, slot) {
+      const key = line + '::' + slot;
+      clearRegularAlertRecheckTimer_(line, slot);
+      regularAlertRecheckTimers[key] = setTimeout(function() {
+        delete regularAlertRecheckTimers[key];
+        const st = getRegularAlertState(line);
+        if (st.snoozedUntil) delete st.snoozedUntil[slot];
+        tryShowRegularAlertForSlot_(line, slot, true);
+      }, REGULAR_ALERT_SNOOZE_MS);
+    }
+
+    function repeatAlertNote_(isRepeat) {
+      return isRepeat ? '<br><span style="color:#b91c1c;font-weight:bold;">※「了解」から10分以上、未実施が続いています。</span>' : '';
+    }
+
+    function tryShowRegularAlertForSlot_(line, slot, isRepeat) {
+      if (!shouldCheckRegularAlertsNow() || !canShowRegularAlert_(line, slot)) return;
+      if (activeModalState !== 'none') return;
+      const bundle = ensureLineBundle(line);
+      if (!regularSlotHasItems_(bundle, slot) || isRegularSlotComplete_(bundle, slot)) return;
+
+      if (slot === '始業') {
+        if (!isRepeat) return;
+        showRegularShigyoAlert(line, isRepeat);
+        return;
+      }
+      if (slot === REGULAR_SLOT_17) {
+        const st = getRegularAlertState(line);
+        if (!st.duty17) showRegular17Alert(line);
+        else if (st.duty17 === 'overtime') showRegularTimedAlert(line, slot, '17時（残業）', isRepeat);
+        return;
+      }
+      const cfg = REGULAR_TIMED_ALERTS.find(c => c.slot === slot);
+      if (cfg && shouldFireTimedSlotAlert_(cfg.triggerMin, slot, isRepeat)) {
+        showRegularTimedAlert(line, slot, cfg.label, isRepeat);
+      }
+    }
+
+    function collectUnfinishedRegularForSave_(line) {
+      const bundle = ensureLineBundle(line);
+      const st = getRegularAlertState(line);
+      const slots = checkSlotConstants.regularSlots || [];
+      const unfinished = [];
+      slots.forEach(slot => {
+        if (!regularSlotHasItems_(bundle, slot)) return;
+        if (!isRegularSlotComplete_(bundle, slot)) {
+          if (slot === REGULAR_SLOT_17 && (st.duty17 === 'endwork' || st.duty17 === 'skip17')) return;
+          unfinished.push(slot);
+        }
+      });
+      return unfinished;
+    }
+
+    function openRegularAlertModal(config) {
+      pendingRegularAlertSlot = config.slot;
+      activeModalState = 'regular_alert';
+      suspendAutoFocus(120);
+      document.getElementById('regularAlertTitle').innerText = config.title || '⏱️ 定時検査のお知らせ';
+      document.getElementById('regularAlertBody').innerHTML = config.bodyHtml || '';
+      const listEl = document.getElementById('regularAlertItemList');
+      if (config.items && config.items.length) {
+        listEl.innerHTML = config.items.map(t => `<li>${escapeHtml(t)}</li>`).join('');
+        listEl.style.display = 'block';
+      } else {
+        listEl.innerHTML = '';
+        listEl.style.display = 'none';
+      }
+      const btnArea = document.getElementById('regularAlertBtnArea');
+      btnArea.innerHTML = config.buttonsHtml || '';
+      document.getElementById('regularAlertModal').style.display = 'flex';
+    }
+
+    function closeRegularAlertModal() {
+      document.getElementById('regularAlertModal').style.display = 'none';
+      activeModalState = 'none';
+      pendingRegularAlertSlot = null;
+      focusBarcodeScan();
+    }
+
+    function showRegularTimedAlert(line, slot, deadlineLabel, isRepeat) {
+      if (!shouldCheckRegularAlertsNow() || !canShowRegularAlert_(line, slot)) return;
+      if (activeModalState !== 'none') return;
+      const bundle = ensureLineBundle(line);
+      if (!regularSlotHasItems_(bundle, slot) || isRegularSlotComplete_(bundle, slot)) return;
+
+      const items = getIncompleteRegularItems_(bundle, slot).map(it => it.text);
+      openRegularAlertModal({
+        slot: slot,
+        title: isRepeat ? `⏱️ 定時検査（${slot}）再通知` : `⏱️ 定時検査（${slot}）未実施`,
+        bodyHtml: `<strong>${escapeHtml(deadlineLabel)}</strong> までに実施が必要です。<br>未入力の項目があります。${repeatAlertNote_(!!isRepeat)}`,
+        items: items,
+        buttonsHtml: `
+          <button type="button" class="btn-warn-ok" onclick="onRegularAlertAcknowledge('${escapeHtml(line)}','${escapeHtml(slot)}')">了解（あとで実施）</button>
+          <button type="button" class="btn-warn-skip" onclick="onRegularAlertMarkUnneeded('${escapeHtml(line)}','${escapeHtml(slot)}')">不要（ライン停止等）</button>
+        `
+      });
+    }
+
+    function showRegularShigyoAlert(line, isRepeat) {
+      if (!shouldCheckRegularAlertsNow()) return;
+      const slot = '始業';
+      if (!canShowRegularAlert_(line, slot)) return;
+      if (activeModalState !== 'none') return;
+      const bundle = ensureLineBundle(line);
+      if (!regularSlotHasItems_(bundle, slot) || isRegularSlotComplete_(bundle, slot)) return;
+
+      const items = getIncompleteRegularItems_(bundle, slot).map(it => it.text);
+      openRegularAlertModal({
+        slot: slot,
+        title: isRepeat ? '⏱️ 始業時 定時検査（再通知）' : '⏱️ 始業時 定時検査が未実施',
+        bodyHtml: `製造を開始しましたが、<strong>始業時</strong>の定時検査が未完了です。${repeatAlertNote_(!!isRepeat)}`,
+        items: items,
+        buttonsHtml: `
+          <button type="button" class="btn-warn-ok" onclick="onRegularAlertAcknowledge('${escapeHtml(line)}','始業')">了解</button>
+          <button type="button" class="btn-warn-skip" onclick="onRegularAlertMarkUnneeded('${escapeHtml(line)}','始業')">不要</button>
+        `
+      });
+    }
+
+    function showRegular17Alert(line) {
+      if (!shouldCheckRegularAlertsNow()) return;
+      const st = getRegularAlertState(line);
+      if (st.duty17) return;
+      if (activeModalState !== 'none') return;
+      const bundle = ensureLineBundle(line);
+      if (!regularSlotHasItems_(bundle, REGULAR_SLOT_17)) return;
+      if (isRegularSlotComplete_(bundle, REGULAR_SLOT_17)) return;
+      const items = getIncompleteRegularItems_(bundle, REGULAR_SLOT_17).map(it => it.text);
+      openRegularAlertModal({
+        slot: REGULAR_SLOT_17,
+        title: '⏱️ 17時検査（16:50）',
+        bodyHtml: '終業・残業・不要のいずれかを選択してください。<br><span style="font-size:12px;">残業を選ぶと17時の定時検査が必要になります。</span>',
+        items: items,
+        buttonsHtml: `
+          <button type="button" class="btn-warn-end" onclick="onRegular17Choice('${escapeHtml(line)}','endwork')">終業</button>
+          <button type="button" class="btn-warn-overtime" onclick="onRegular17Choice('${escapeHtml(line)}','overtime')">残業（17時検査へ）</button>
+          <button type="button" class="btn-warn-skip" onclick="onRegular17Choice('${escapeHtml(line)}','skip17')">不要</button>
+        `
+      });
+    }
+
+    function onRegularAlertAcknowledge(line, slot) {
+      snoozeRegularAlert_(line, slot);
+      scheduleRegularAlertRecheck_(line, slot);
+      closeRegularAlertModal();
+      activeRegularSlot = slot;
+      switchTab('regularCheck');
+    }
+
+    function onRegularAlertMarkUnneeded(line, slot) {
+      markRegularSlotUnneeded_(line, slot);
+      dismissRegularAlertPermanent_(line, slot);
+      closeRegularAlertModal();
+    }
+
+    function onRegular17Choice(line, choice) {
+      const st = getRegularAlertState(line);
+      st.duty17 = choice;
+      if (choice === 'endwork' || choice === 'skip17') {
+        markRegularSlotUnneeded_(line, REGULAR_SLOT_17);
+        dismissRegularAlertPermanent_(line, REGULAR_SLOT_17);
+        closeRegularAlertModal();
+        if (choice === 'endwork') {
+          alert('終業を選択しました。17時の定時検査は「不要」として記録しました。\n終業時の検査がある場合は「終業」枠で実施してください。');
+        }
+        return;
+      }
+      if (choice === 'overtime') {
+        closeRegularAlertModal();
+        activeRegularSlot = REGULAR_SLOT_17;
+        switchTab('regularCheck');
+        alert('残業を選択しました。17時の定時検査を実施してください。');
+      }
+    }
+
+    function checkRegularAlertsByClock() {
+      if (!shouldCheckRegularAlertsNow()) return;
+      const line = document.getElementById('lineNoSelect').value;
+      if (!line) return;
+      const nowMin = getCurrentMinutes_();
+      const bundle = ensureLineBundle(line);
+      const st = getRegularAlertState(line);
+
+      REGULAR_TIMED_ALERTS.forEach(cfg => {
+        if (shouldFireTimedSlotAlert_(cfg.triggerMin, cfg.slot, false)) {
+          tryShowRegularAlertForSlot_(line, cfg.slot, false);
+        }
+      });
+
+      if (nowMin >= REGULAR_TRIGGER_17) {
+        if (!st.duty17) {
+          showRegular17Alert(line);
+        } else if (st.duty17 === 'overtime') {
+          tryShowRegularAlertForSlot_(line, REGULAR_SLOT_17, false);
+        }
+      }
+    }
+
+    function getCurrentMinutes_() {
+      const d = new Date();
+      return d.getHours() * 60 + d.getMinutes();
+    }
+
+    function armRegularAlertSession_() {
+      regularAlertSessionStartMin = getCurrentMinutes_();
+    }
+
+    /**
+     * 10時・13時・15時など：アプリを開いた時点で既に締切を過ぎている枠は警告しない。
+     * isRepeat=true（了解から10分後の再通知）のときは対象。
+     */
+    function shouldFireTimedSlotAlert_(triggerMin, slot, isRepeat) {
+      const nowMin = getCurrentMinutes_();
+      if (nowMin < triggerMin) return false;
+      if (isRepeat) return true;
+      if (slot === REGULAR_SLOT_17) return true;
+      if (regularAlertSessionStartMin === null) return false;
+      if (triggerMin < regularAlertSessionStartMin) return false;
+      return true;
+    }
+
+    function onManufacturingRecordStarted() {
+      const line = document.getElementById('lineNoSelect').value;
+      if (!line) return;
+      const st = getRegularAlertState(line);
+      if (st.shigyoAlertFired) return;
+      st.shigyoAlertFired = true;
+      setTimeout(() => showRegularShigyoAlert(line), 300);
+    }
+
+    function openRegularSaveWarnModal(slots) {
+      activeModalState = 'regular_save_warn';
+      suspendAutoFocus(60);
+      document.getElementById('regularSaveWarnList').innerHTML = slots.map(s => `<li>${escapeHtml(s)}</li>`).join('');
+      document.getElementById('regularSaveWarnModal').style.display = 'flex';
+    }
+
+    function closeRegularSaveWarnModal(goRegularTab) {
+      document.getElementById('regularSaveWarnModal').style.display = 'none';
+      activeModalState = 'none';
+      if (goRegularTab) {
+        activeRegularSlot = '始業';
+        switchTab('regularCheck');
+      }
+      focusBarcodeScan();
+    }
+
+    function startRegularAlertTimer() {
+      if (regularAlertTimerId) clearInterval(regularAlertTimerId);
+      regularAlertTimerId = setInterval(checkRegularAlertsByClock, 45000);
+    }
+
+    function refreshVarietySelectOptions() {
+      const names = new Set(['未選択']);
+      productRows.forEach(p => { if (p.productName) names.add(p.productName); });
+      if (currentActiveJob && currentActiveJob.productName) names.add(currentActiveJob.productName);
+      const line = document.getElementById('lineNoSelect').value;
+      const current = line ? (ensureLineBundle(line).varietySelection || '未選択') : '未選択';
+      const html = Array.from(names).map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+      ['varietySelect', 'varietySelectRegular'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.innerHTML = html; el.value = names.has(current) ? current : '未選択'; }
+      });
+    }
+
+    function onVarietySelectionChanged() {
+      const line = document.getElementById('lineNoSelect').value;
+      if (!line) return;
+      const el = document.getElementById('varietySelect') || document.getElementById('varietySelectRegular');
+      ensureLineBundle(line).varietySelection = el ? el.value : '未選択';
+      const other = document.getElementById('varietySelectRegular');
+      if (other && el) other.value = el.value;
+      const other2 = document.getElementById('varietySelect');
+      if (other2 && el && el.id !== 'varietySelect') other2.value = el.value;
+      renderMatrixView();
+    }
+
+    function renderSlotBar(containerId, slots, activeSlot, onSelectName) {
+      const bar = document.getElementById(containerId);
+      if (!bar) return;
+      bar.innerHTML = slots.map(s =>
+        `<button type="button" class="slot-btn ${s === activeSlot ? 'active' : ''}" onclick="${onSelectName}('${escapeHtml(s)}')">${escapeHtml(s)}</button>`
+      ).join('');
+    }
+
+    function selectSensorSlot(slot) {
+      activeSensorSlot = slot;
+      const line = document.getElementById('lineNoSelect').value;
+      if (line) renderCheckLists(line);
+    }
+
+    function selectRegularSlot(slot) {
+      activeRegularSlot = slot;
+      const line = document.getElementById('lineNoSelect').value;
+      if (line) renderCheckLists(line);
+    }
+
+    function selectSwitchoverSlot(slot) {
+      activeSwitchoverSlot = slot;
+      const line = document.getElementById('lineNoSelect').value;
+      if (line) renderCheckLists(line);
+    }
+
+    function cycleSwitchoverCheck(lineKey, slot, idx) {
+      const item = lineCheckData[lineKey].switchoverBySlot[slot][idx];
+      item.value = toggleJudgeValue(item.value);
+      stampRecordedAt(item);
+      renderCheckLists(lineKey);
+      renderMatrixView();
+      markUnsavedChanges_();
+    }
+
+    function addHinSwitchSlot() {
+      const line = document.getElementById('lineNoSelect').value;
+      if (!line) return;
+      const bundle = ensureLineBundle(line);
+      bundle.hinSwitchCount = (parseInt(bundle.hinSwitchCount, 10) || 1) + 1;
+      const newSlot = (checkSlotConstants.hinSwitchPrefix || '品切') + bundle.hinSwitchCount;
+      if (!bundle.sensorBySlot[newSlot]) {
+        const template = bundle.sensorBySlot[(checkSlotConstants.hinSwitchPrefix || '品切') + '1'] || [];
+        bundle.sensorBySlot[newSlot] = template.map(it => ({ text: it.text, value: '-', recordedAt: '' }));
+      }
+      activeSensorSlot = newSlot;
+      renderCheckLists(line);
+    }
+
+    // ライン変更時
+    function onLineNoChanged() {
+      const selectedLine = document.getElementById("lineNoSelect").value;
+      if (!selectedLine) return;
+      ensureLineBundle(selectedLine);
+
+      document.getElementById("dailyCheckLineTitle").innerText = `日常点検項目 (${selectedLine})`;
+      document.getElementById("sensorCheckLineTitle").innerText = `センサ動作確認 (${selectedLine})`;
+      document.getElementById("switchoverCheckLineTitle").innerText = `切替点検項目 (${selectedLine})`;
+      document.getElementById("regularCheckLineTitle").innerText = `定時（パトロール）検査項目 (${selectedLine})`;
+      document.getElementById("matrixLineTitle").innerText = `点検・検査 実施状況 (${selectedLine})`;
+
+      refreshVarietySelectOptions();
+      renderCheckLists(selectedLine);
+      if (currentTab === 'matrix') renderMatrixView();
+    }
+
+    function renderCheckLists(lineKey) {
+      const bundle = ensureLineBundle(lineKey);
+
+      const dailyArea = document.getElementById("dailyCheckListArea");
+      dailyArea.innerHTML = (bundle.daily || []).map((item, i) => `
+        <div class="check-item-row">
+          <div class="check-item-text">◽️ ${escapeHtml(item.text)}</div>
+          <input type="checkbox" class="check-checkbox" ${item.value ? 'checked' : ''} onchange="toggleDailyCheck('${escapeHtml(lineKey)}', ${i}, this.checked)">
+        </div>
+      `).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">項目が設定されていません。</div>';
+
+      const sensorSlots = getSensorSlotList(bundle);
+      if (!sensorSlots.includes(activeSensorSlot)) activeSensorSlot = sensorSlots[0];
+      const sensorBar = document.getElementById('sensorSlotBar');
+      if (sensorBar) {
+        sensorBar.innerHTML = sensorSlots.map(s =>
+          `<button type="button" class="slot-btn ${s === activeSensorSlot ? 'active' : ''}" onclick="selectSensorSlot('${escapeHtml(s)}')">${escapeHtml(s)}</button>`
+        ).join('') + `<button type="button" class="slot-btn slot-btn-add" onclick="addHinSwitchSlot()">＋品切追加</button>`;
+      }
+      const sensorItems = bundle.sensorBySlot[activeSensorSlot] || [];
+      document.getElementById("sensorCheckListArea").innerHTML = sensorItems.map((item, i) => {
+        const v = item.value || '-';
+        return `
+          <div class="check-item-row">
+            <div class="check-item-text">⚡ ${escapeHtml(item.text)}${item.recordedAt ? `<br><span style="font-size:10px;color:#64748b;">記録 ${escapeHtml(item.recordedAt)}</span>` : ''}</div>
+            <button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" onclick="cycleSensorCheck('${escapeHtml(lineKey)}', '${escapeHtml(activeSensorSlot)}', ${i})">${judgeDisplayLabel(v)}</button>
+          </div>`;
+      }).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">この回の項目がありません。</div>';
+
+      const swSlots = getSwitchoverSlotList(bundle);
+      if (swSlots.length && !swSlots.includes(activeSwitchoverSlot)) activeSwitchoverSlot = swSlots[swSlots.length - 1];
+      const swBar = document.getElementById('switchoverSlotBar');
+      if (swBar) {
+        if (!swSlots.length) {
+          swBar.innerHTML = '';
+        } else {
+          swBar.innerHTML = swSlots.map(s =>
+            `<button type="button" class="slot-btn ${s === activeSwitchoverSlot ? 'active' : ''}" onclick="selectSwitchoverSlot('${escapeHtml(s)}')">${escapeHtml(s)}</button>`
+          ).join('');
+        }
+      }
+      const swItems = swSlots.length ? (bundle.switchoverBySlot[activeSwitchoverSlot] || []) : [];
+      const swArea = document.getElementById('switchoverCheckListArea');
+      if (swArea) {
+        if (!getSwitchoverMasterItems_(bundle).length) {
+          swArea.innerHTML = '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">切替点検マスタに項目がありません。スプレッドシートの「切替点検マスタ」を登録してください。</div>';
+        } else if (!swSlots.length) {
+          swArea.innerHTML = '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">本日の品種切替はまだありません。</div>';
+        } else {
+          swArea.innerHTML = swItems.map((item, i) => {
+            const v = item.value || '-';
+            return `
+              <div class="check-item-row">
+                <div class="check-item-text">🔄 ${escapeHtml(item.text)}${item.recordedAt ? `<br><span style="font-size:10px;color:#64748b;">記録 ${escapeHtml(item.recordedAt)}</span>` : ''}</div>
+                <button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" onclick="cycleSwitchoverCheck('${escapeHtml(lineKey)}', '${escapeHtml(activeSwitchoverSlot)}', ${i})">${judgeDisplayLabel(v)}</button>
+              </div>`;
+          }).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">この回の項目がありません。</div>';
+        }
+      }
+
+      const regSlots = checkSlotConstants.regularSlots || [];
+      if (!regSlots.includes(activeRegularSlot)) activeRegularSlot = regSlots[0];
+      renderSlotBar('regularSlotBar', regSlots, activeRegularSlot, 'selectRegularSlot');
+      const regItems = bundle.regularBySlot[activeRegularSlot] || [];
+      document.getElementById("regularCheckListArea").innerHTML = regItems.map((item, i) => {
+        let inputPart = "";
+        if (item.judgeType === "合否") {
+          const v = item.value || '-';
+          inputPart = `<button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" onclick="cycleRegularCheck('${escapeHtml(lineKey)}', '${escapeHtml(activeRegularSlot)}', ${i})">${judgeDisplayLabel(v)}</button>`;
+        } else {
+          const hasValue = item.value !== "";
+          const btnText = hasValue ? `${item.value} ${item.judgeType}` : "数値入力";
+          inputPart = `<button type="button" class="btn-value-input ${hasValue ? 'filled' : ''}" onclick="openRegularValueModal('${escapeHtml(activeRegularSlot)}', ${i})">${escapeHtml(btnText)}</button>`;
+        }
+        return `<div class="check-item-row"><div class="check-item-text">⏱️ ${escapeHtml(item.text)}</div><div>${inputPart}</div></div>`;
+      }).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">この回の項目がありません。</div>';
+    }
+
+    function toggleDailyCheck(lineKey, idx, isChecked) {
+      const item = lineCheckData[lineKey].daily[idx];
+      item.value = isChecked;
+      if (isChecked) item.recordedAt = nowTimeStr();
+      renderMatrixView();
+    }
+
+    function cycleSensorCheck(lineKey, slot, idx) {
+      const item = lineCheckData[lineKey].sensorBySlot[slot][idx];
+      item.value = toggleJudgeValue(item.value);
+      stampRecordedAt(item);
+      renderCheckLists(lineKey);
+      renderMatrixView();
+    }
+
+    function clearRegularAlertIfSlotComplete_(lineKey, slot) {
+      if (!isRegularSlotComplete_(ensureLineBundle(lineKey), slot)) return;
+      clearRegularAlertRecheckTimer_(lineKey, slot);
+      const st = getRegularAlertState(lineKey);
+      if (st.snoozedUntil) delete st.snoozedUntil[slot];
+    }
+
+    function cycleRegularCheck(lineKey, slot, idx) {
+      const item = lineCheckData[lineKey].regularBySlot[slot][idx];
+      item.value = toggleJudgeValue(item.value);
+      stampRecordedAt(item);
+      clearRegularAlertIfSlotComplete_(lineKey, slot);
+      renderCheckLists(lineKey);
+      renderMatrixView();
+    }
+
+    function openRegularValueModal(slot, idx) {
+      suspendAutoFocus(10);
+      activeModalState = "regular_val";
+      currentRegEditIndex = { slot: slot, idx: idx };
+      const selectedLine = document.getElementById("lineNoSelect").value;
+      const item = lineCheckData[selectedLine].regularBySlot[slot][idx];
+      document.getElementById("regularValueModal").style.display = "flex";
+      document.getElementById("targetRegularLabel").innerText = `項目：${item.text}（${activeRegularSlot}）`;
+      document.getElementById("modalRegularValueInput").value = item.value;
+      document.getElementById("modalRegularUnitLabel").innerText = item.judgeType;
+    }
+
+    function renderMatrixView() {
+      const line = document.getElementById('lineNoSelect').value;
+      const area = document.getElementById('matrixContentArea');
+      const hint = document.getElementById('matrixVarietyHint');
+      if (!line || !area) return;
+      const bundle = ensureLineBundle(line);
+      if (hint) hint.innerText = `品種（手動選択）: ${bundle.varietySelection || '未選択'} ※将来マスタ連動予定`;
+
+      let html = '';
+      html += '<div class="matrix-section-title">🔍 日常点検</div>';
+      html += '<div class="matrix-wrap"><table class="matrix-table"><tr><th class="item-col">項目</th><th>当日</th></tr>';
+      (bundle.daily || []).forEach(it => {
+        const v = it.value ? '済' : '未';
+        html += `<tr><td class="item-col">${escapeHtml(it.text)}</td><td class="${matrixCellClass(v)}">${v}</td></tr>`;
+      });
+      html += '</table></div>';
+      if (!(bundle.daily || []).length) html += '<p class="check-hint">日常点検項目なし</p>';
+
+      const sensorSlots = getSensorSlotList(bundle);
+      html += '<div class="matrix-section-title">⚡ センサチェック</div><div class="matrix-wrap">';
+      html += buildMatrixTableHtml_(collectMatrixItems_(bundle.sensorBySlot, sensorSlots), sensorSlots);
+      html += '</div>';
+
+      const swSlots = getSwitchoverSlotList(bundle);
+      html += '<div class="matrix-section-title">🔄 切替点検</div><div class="matrix-wrap">';
+      html += buildMatrixTableHtml_(collectMatrixItems_(bundle.switchoverBySlot || {}, swSlots), swSlots);
+      html += '</div>';
+      if (!swSlots.length) html += '<p class="check-hint">切替点検の実施回なし</p>';
+
+      const regSlots = checkSlotConstants.regularSlots || [];
+      html += '<div class="matrix-section-title">⏱️ 定時検査</div><div class="matrix-wrap">';
+      html += buildMatrixTableHtml_(collectMatrixItems_(bundle.regularBySlot, regSlots), regSlots, true);
+      html += '</div>';
+
+      area.innerHTML = html;
+    }
+
+    function collectMatrixItems_(bySlot, slots) {
+      const map = {};
+      slots.forEach(slot => {
+        (bySlot[slot] || []).forEach(it => {
+          if (!map[it.text]) map[it.text] = { text: it.text, judgeType: it.judgeType || '', cells: {} };
+          map[it.text].cells[slot] = it.value !== undefined && it.value !== '' ? String(it.value) : '-';
+        });
+      });
+      return Object.values(map);
+    }
+
+    function buildMatrixTableHtml_(rows, slots, showUnit) {
+      if (!rows.length) return '<p class="check-hint">項目なし</p>';
+      let h = '<table class="matrix-table"><tr><th class="item-col">項目</th>';
+      slots.forEach(s => { h += `<th>${escapeHtml(s)}</th>`; });
+      h += '</tr>';
+      rows.forEach(row => {
+        h += `<tr><td class="item-col">${escapeHtml(row.text)}${showUnit && row.judgeType && row.judgeType !== '合否' ? `<br><span style="font-weight:normal;font-size:10px;">(${escapeHtml(row.judgeType)})</span>` : ''}</td>`;
+        slots.forEach(s => {
+          const v = row.cells[s] || '-';
+          h += `<td class="${matrixCellClass(v)}">${escapeHtml(judgeDisplayLabel(v))}</td>`;
+        });
+        h += '</tr>';
+      });
+      return h + '</table>';
+    }
+    function closeRegularValueModal() {
+      activeModalState = "none";
+      document.getElementById("regularValueModal").style.display = "none";
+      focusBarcodeScan();
+    }
+    function pressRegNum(char) {
+      const input = document.getElementById("modalRegularValueInput");
+      if (char === '.' && input.value.includes('.')) return;
+      input.value = input.value + String(char);
+    }
+    function pressRegClear() { document.getElementById("modalRegularValueInput").value = ""; }
+    function confirmRegularValue() {
+      const val = document.getElementById("modalRegularValueInput").value.trim();
+      const selectedLine = document.getElementById("lineNoSelect").value;
+      const item = lineCheckData[selectedLine].regularBySlot[currentRegEditIndex.slot][currentRegEditIndex.idx];
+      item.value = val;
+      item.recordedAt = nowTimeStr();
+      clearRegularAlertIfSlotComplete_(selectedLine, currentRegEditIndex.slot);
+      closeRegularValueModal();
+      renderCheckLists(selectedLine);
+      renderMatrixView();
+    }
+
+    /** スキャン文字列の正規化（サーバー normalizeServerCode と同等の考え方） */
+    function normalizeScanRaw(raw) {
+      let s = String(raw || '');
+      s = s.replace(/^\uFEFF/, '');
+      s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      s = s.replace(/\u001D/g, '');
+      s = s.trim();
+      if (!s) return '';
+      if (/^https?:\/\//i.test(s)) {
+        const textIdx = s.indexOf('text=');
+        if (textIdx >= 0) {
+          let tail = s.substring(textIdx + 5);
+          const amp = tail.indexOf('&');
+          if (amp >= 0) tail = tail.substring(0, amp);
+          try { s = decodeURIComponent(tail); } catch (e) { s = tail; }
+        }
+      }
+      s = s.replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+      s = s.replace(/\s+/g, '').trim();
+      if (s.indexOf('.') !== -1) s = s.split('.')[0].trim();
+      return s;
+    }
+
+    function isScanTerminatorKey(key) {
+      return key === 'Enter' || key === 'Tab';
+    }
+
+    function setScanStatusReady() {
+      const el = document.getElementById('scanStatus');
+      if (!el || scanInFlight) return;
+      el.innerText = 'スキャン受付中';
+      el.style.background = '#deff9a';
+    }
+
+    function setScanStatusBusy() {
+      const el = document.getElementById('scanStatus');
+      if (!el) return;
+      el.innerText = 'コード解析中...';
+      el.style.background = '#ffcc00';
+    }
+
+    function commitScanFromInput(inputEl, handler) {
+      if (!inputEl || scanInFlight || scanImeComposing) return;
+      const raw = inputEl.value;
+      const code = normalizeScanRaw(raw);
+      if (!code) return;
+      clearTimeout(scanCommitTimer);
+      scanCommitTimer = null;
+      inputEl.value = '';
+      handler(code, raw);
+    }
+
+    function scheduleScanAutoCommit(inputEl, handler) {
+      clearTimeout(scanCommitTimer);
+      scanCommitTimer = setTimeout(function() {
+        scanCommitTimer = null;
+        if (!inputEl.value || scanInFlight || scanImeComposing) return;
+        commitScanFromInput(inputEl, handler);
+      }, 180);
+    }
+
+    function bindScanInput(inputEl, handler) {
+      if (!inputEl) return;
+      inputEl.addEventListener('compositionstart', function() { scanImeComposing = true; });
+      inputEl.addEventListener('compositionend', function() { scanImeComposing = false; });
+      inputEl.addEventListener('input', function() {
+        if (scanInFlight) return;
+        scheduleScanAutoCommit(inputEl, handler);
+      });
+      inputEl.addEventListener('keydown', function(e) {
+        if (!isScanTerminatorKey(e.key)) return;
+        e.preventDefault();
+        commitScanFromInput(inputEl, handler);
+      });
+    }
+
+    // 常時オートフォーカス機構（force=true: 初期化直後など、他入力のフォーカスを上書き）
+    function focusBarcodeScan(force) {
+      if (currentTab !== 'production') return;
+      if (!isAutoFocusEnabled || scanInFlight) return;
+      if (activeModalState === "defect_qty" || activeModalState === "defect_scan" || activeModalState === "regular_val" || activeModalState === "regular_alert" || activeModalState === "regular_save_warn" || activeModalState === "work_switch" || activeModalState === "switchover_prompt" || activeModalState === "switchover_check") return;
+      const input = document.getElementById("barcodeHiddenInput");
+      if (!input) return;
+      const activeEl = document.activeElement;
+      if (!force && activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "SELECT") && activeEl.id !== "barcodeHiddenInput") return;
+      if (force) {
+        const dateEl = document.getElementById('workDateSelect');
+        const lineEl = document.getElementById('lineNoSelect');
+        if (dateEl && document.activeElement === dateEl) dateEl.blur();
+        if (lineEl && document.activeElement === lineEl) lineEl.blur();
+      }
+      try {
+        input.focus({ preventScroll: true });
+      } catch (e) {
+        input.focus();
+      }
+      setScanStatusReady();
+    }
+
+    /** 読込完了後：スキャナ入力欄を確実に待ち受け状態にする */
+    function armScannerAfterLoad_() {
+      isAutoFocusEnabled = true;
+      focusBarcodeScan(true);
+      const input = document.getElementById('barcodeHiddenInput');
+      if (!input) return;
+      [50, 200, 500].forEach(function(ms) {
+        setTimeout(function() {
+          if (currentTab === 'production' && activeModalState === 'none' && !scanInFlight) {
+            focusBarcodeScan(true);
+          }
+        }, ms);
+      });
+    }
+
+    function suspendAutoFocus(seconds) {
+      if (autoFocusBlockTimer) clearTimeout(autoFocusBlockTimer);
+      isAutoFocusEnabled = false;
+      document.getElementById("scanStatus").innerText = "手動入力・操作中";
+      document.getElementById("scanStatus").style.background = "#cbd5e1";
+      autoFocusBlockTimer = setTimeout(function() {
+        isAutoFocusEnabled = true;
+        focusBarcodeScan();
+      }, seconds * 1000);
+    }
+
+    window.onload = function() {
+      const dateInput = document.getElementById('workDateSelect');
+      if (dateInput && !dateInput.value) dateInput.value = todayDateString();
+
+      bindScanInput(document.getElementById("barcodeHiddenInput"), function(code, raw) {
+        if (activeModalState === "end") {
+          handleEndCaseScanValue(raw || code);
+          return;
+        }
+        if (activeModalState === "defect_scan") {
+          executeDefectQRQuery(code);
+          return;
+        }
+        executeBarcodeQuery(code, raw);
+      });
+
+      bindScanInput(document.getElementById("modalDefectCodeInput"), function(code) {
+        executeDefectQRQuery(code);
+      });
+
+      loadInitialData();
+      
+      document.body.addEventListener("click", function(e) {
+        if (activeModalState === "defect_qty" || activeModalState === "defect_scan" || activeModalState === "regular_val" || activeModalState === "regular_alert" || activeModalState === "regular_save_warn" || activeModalState === "work_switch" || activeModalState === "switchover_prompt" || activeModalState === "switchover_check" || currentTab !== 'production') return;
+        if (e.target && e.target.id !== "barcodeHiddenInput" && e.target.id !== "modalDefectCodeInput") {
+          if (e.target.tagName === "SELECT" || e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") {
+            suspendAutoFocus(5);
+            return;
+          }
+          focusBarcodeScan();
+        }
+      }, true);
+
+      window.addEventListener("keydown", function(e) {
+        if (activeModalState === "defect_qty") {
+          if (e.key >= "0" && e.key <= "9") { e.preventDefault(); pressQtyNum(parseInt(e.key, 10)); }
+          else if (e.key === "Backspace") { e.preventDefault(); pressQtyBackspace(); }
+          else if (e.key === "Escape") { e.preventDefault(); cancelDefectQty(); }
+          else if (e.key === "Enter") { e.preventDefault(); confirmDefectQty(); }
+        } else if (activeModalState === "end") {
+          if (e.target && (e.target.id === "barcodeHiddenInput" || e.target.id === "modalEndCaseInput")) return;
+          if (e.key >= "0" && e.key <= "9") { e.preventDefault(); pressEndCaseNum(parseInt(e.key, 10)); }
+          else if (e.key === "Backspace") { e.preventDefault(); pressEndCaseBackspace(); }
+          else if (e.key === "Escape") { e.preventDefault(); closeEndModal(); }
+          else if (e.key === "Enter") { e.preventDefault(); confirmEndProduction(); }
+        }
+      });
+
+      setInterval(focusBarcodeScan, 2000);
+
+      window.addEventListener('beforeunload', function(e) {
+        if (hasUnsavedChanges) {
+          persistDraftToLocal_();
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
+
+      periodicDraftTimerId = setInterval(function() {
+        if (hasUnsavedChanges) persistDraftToLocal_();
+      }, 90000);
+    };
+
+    function getTimelineBarColorClass(status) {
+      const s = String(status || '');
+      const hit = (workMasterList || []).find(w => w.name === s);
+      if (hit && hit.colorKey) {
+        const ck = String(hit.colorKey);
+        if (['製造', '修理', '調整', '未選択'].indexOf(ck) >= 0) return 'bg-' + ck;
+      }
+      if (s.indexOf('完了:') === 0 || s.indexOf('製造') !== -1) return 'bg-製造';
+      if (s === '修理') return 'bg-修理';
+      if (s === '調整') return 'bg-調整';
+      return 'bg-未選択';
+    }
+
+    /** 作業QR切替の「前作業」対象（末尾の未選択は除く） */
+    function getLastActiveTimelineBlockIndex() {
+      for (let i = timelineBlocks.length - 1; i >= 0; i--) {
+        const s = timelineBlocks[i].status;
+        if (s && s !== '未選択') return i;
+      }
+      return timelineBlocks.length > 0 ? timelineBlocks.length - 1 : -1;
+    }
+
+    /** 末尾のプレースホルダー（未選択）を除去（作業QR前に呼ぶ） */
+    function removeTrailingUnselectedBlocks_() {
+      while (timelineBlocks.length > 0 && timelineBlocks[timelineBlocks.length - 1].status === '未選択') {
+        timelineBlocks.pop();
+      }
+    }
+
+    /** 製品ラベル開始時：未選択枠を製造枠にし、開始時刻を現在にする */
+    function assignManufacturingToTimeline(keyName) {
+      const t = nowTimeStrForTimeline_();
+      let endMin = roundMinutesTo5Step(timeToMin(t) + 15);
+      if (isNaN(endMin)) endMin = roundMinutesTo5Step(timeToMin('08:45'));
+      let allocated = false;
+      for (let block of timelineBlocks) {
+        if (!allocated && block.status === '未選択') {
+          block.status = keyName;
+          block.startTime = t;
+          block.endTime = minToTime(endMin);
+          allocated = true;
+        }
+      }
+      if (!allocated) {
+        timelineBlocks.push({
+          id: Date.now(),
+          status: keyName,
+          startTime: t,
+          endTime: minToTime(endMin)
+        });
+      }
+      reconcileTimelineChain_(timelineBlocks);
+    }
+
+    /** 旧データ：タイムラインの「完了:品名」を製造枠名（製造①等）に戻す */
+    function normalizeLegacyCompletedTimeline_(blocks, products) {
+      (blocks || []).forEach(function(b) {
+        if (!b.status || b.status.indexOf('完了:') !== 0) return;
+        const productName = b.status.substring(3);
+        const pr = (products || []).find(function(p) {
+          return p.productName === productName || p.idName && b.status.indexOf(p.idName) >= 0;
+        });
+        if (pr && pr.idName) b.status = pr.idName;
+      });
+    }
+
+    /** 製造終了後など、末尾に未選択の空き枠を1つ確保 */
+    function ensureOpenTimelineSlotAfterWork_() {
+      const last = timelineBlocks[timelineBlocks.length - 1];
+      if (last && last.status === '未選択') return;
+      let startMin = last ? timeToMin(last.endTime) : START_AXIS_MIN;
+      if (isNaN(startMin)) startMin = START_AXIS_MIN;
+      const endMin = Math.min(startMin + 15, END_AXIS_MIN);
+      timelineBlocks.push({
+        id: Date.now(),
+        status: '未選択',
+        startTime: minToTime(startMin),
+        endTime: minToTime(endMin)
+      });
+    }
+
+    /** 製造終了確定時：製造枠の終了時刻を現在にする（ステータスは製造①のまま） */
+    function closeManufacturingTimelineBlock(idName) {
+      const endMin = roundMinutesTo5Step(timeToMin(nowTimeStrForTimeline_()));
+      for (let block of timelineBlocks) {
+        if (block.status !== idName) continue;
+        let startMin = timeToMin(block.startTime);
+        if (isNaN(startMin) || startMin >= endMin) {
+          startMin = Math.max(START_AXIS_MIN, endMin - 15);
+          block.startTime = minToTime(startMin);
+        }
+        block.endTime = minToTime(endMin);
+        return true;
+      }
+      return false;
+    }
+
+    function getTimelineSelectClass(status) {
+      const bar = getTimelineBarColorClass(status);
+      if (bar === 'bg-製造') return 'active-prod';
+      if (bar === 'bg-修理') return 'active-repair';
+      if (bar === 'bg-調整') return 'active-adjust';
+      return 'select-未選択';
+    }
+
+    function buildTimelineStatusOptionsHtml(currentStatus) {
+      let html = `<option value="未選択" ${currentStatus === '未選択' ? 'selected' : ''}>未選択</option>`;
+      (workMasterList || []).forEach(w => {
+        html += `<option value="${escapeHtml(w.name)}" ${currentStatus === w.name ? 'selected' : ''}>${escapeHtml(w.name)}</option>`;
+      });
+      const jobs = [...productRows];
+      if (currentActiveJob) jobs.push(currentActiveJob);
+      const seen = new Set();
+      jobs.forEach(pr => {
+        if (!pr.idName || seen.has(pr.idName)) return;
+        seen.add(pr.idName);
+        html += `<option value="${escapeHtml(pr.idName)}" ${currentStatus === pr.idName ? 'selected' : ''}>${escapeHtml(pr.idName)}</option>`;
+      });
+      return html;
+    }
+
+    const WORK_PICKER_MIN_STEP = 5;
+
+    function roundMinutesTo5Step(totalMin) {
+      let m = Math.round(totalMin / WORK_PICKER_MIN_STEP) * WORK_PICKER_MIN_STEP;
+      return Math.max(START_AXIS_MIN, Math.min(m, END_AXIS_MIN));
+    }
+
+    function getWorkPickerElement(pickerKey) {
+      return document.querySelector('.work-time-picker[data-picker="' + pickerKey + '"]');
+    }
+
+    function getWorkPickerMinutes(pickerKey) {
+      const el = getWorkPickerElement(pickerKey);
+      if (!el) return START_AXIS_MIN;
+      const stored = parseInt(el.dataset.totalMin, 10);
+      return isNaN(stored) ? START_AXIS_MIN : stored;
+    }
+
+    function getWorkPickerTimeStr(pickerKey) {
+      return minToTime(getWorkPickerMinutes(pickerKey));
+    }
+
+    function refreshWorkPickerDisplay(pickerKey) {
+      const cap = pickerKey.charAt(0).toUpperCase() + pickerKey.slice(1);
+      const totalMin = getWorkPickerMinutes(pickerKey);
+      const parts = minToTime(totalMin).split(':');
+      const hourEl = document.getElementById('work' + cap + 'Hour');
+      const minEl = document.getElementById('work' + cap + 'Min');
+      if (hourEl) hourEl.innerText = parts[0];
+      if (minEl) minEl.innerText = parts[1];
+    }
+
+    function setWorkPickerTime(pickerKey, timeStr) {
+      const el = getWorkPickerElement(pickerKey);
+      if (!el) return;
+      let totalMin = timeToMin(timeStr);
+      if (isNaN(totalMin)) totalMin = START_AXIS_MIN;
+      el.dataset.totalMin = String(roundMinutesTo5Step(totalMin));
+      refreshWorkPickerDisplay(pickerKey);
+    }
+
+    function stepWorkPickerTime(pickerKey, part, direction) {
+      let totalMin = getWorkPickerMinutes(pickerKey);
+      if (part === 'hour') {
+        totalMin += direction * 60;
+      } else {
+        totalMin += direction * WORK_PICKER_MIN_STEP;
+      }
+      const el = getWorkPickerElement(pickerKey);
+      if (el) el.dataset.totalMin = String(roundMinutesTo5Step(totalMin));
+      refreshWorkPickerDisplay(pickerKey);
+    }
+
+    /** 新作業開始を、画面上の前作業終了時刻に合わせる */
+    function syncNewStartToPrevEnd() {
+      setWorkPickerTime('newStart', getWorkPickerTimeStr('prevEnd'));
+    }
+
+    function openWorkSwitchModal(res) {
+      suspendAutoFocus(120);
+      activeModalState = 'work_switch';
+      removeTrailingUnselectedBlocks_();
+      const scanTime = nowTimeStrForTimeline_();
+      const prevIdx = getLastActiveTimelineBlockIndex();
+      const prevStatus = prevIdx >= 0 ? timelineBlocks[prevIdx].status : '（なし）';
+      let defaultEndMin = timeToMin(scanTime) + 15;
+      if (isNaN(defaultEndMin)) defaultEndMin = timeToMin('08:45');
+
+      pendingWorkSwitch = { workName: res.workName, colorKey: res.colorKey || res.workName, scanTime: scanTime };
+
+      document.getElementById('workScanTimeLabel').innerText = scanTime;
+      document.getElementById('workPrevStatusLabel').innerText = prevStatus;
+      document.getElementById('workNewStatusLabel').innerText = res.workName;
+      setWorkPickerTime('prevEnd', scanTime);
+      setWorkPickerTime('newStart', scanTime);
+      setWorkPickerTime('newEnd', minToTime(defaultEndMin));
+      document.getElementById('workSwitchModal').style.display = 'flex';
+      updateUI();
+    }
+
+    function closeWorkSwitchModal(restorePlaceholder) {
+      const wasWorkSwitch = activeModalState === 'work_switch';
+      document.getElementById('workSwitchModal').style.display = 'none';
+      activeModalState = 'none';
+      pendingWorkSwitch = null;
+      if (wasWorkSwitch && restorePlaceholder !== false) {
+        ensureOpenTimelineSlotAfterWork_();
+        reconcileTimelineChain_(timelineBlocks);
+        updateUI();
+      }
+      focusBarcodeScan();
+    }
+
+    function confirmWorkSwitchModal() {
+      if (!pendingWorkSwitch) return;
+      removeTrailingUnselectedBlocks_();
+      const prevEnd = getWorkPickerTimeStr('prevEnd');
+      const newStart = getWorkPickerTimeStr('newStart');
+      let newEnd = getWorkPickerTimeStr('newEnd');
+      let sMin = timeToMin(newStart);
+      let eMin = timeToMin(newEnd);
+      if (isNaN(sMin)) sMin = timeToMin(prevEnd);
+      if (isNaN(eMin) || eMin <= sMin) eMin = sMin + MIN_TIMELINE_BLOCK_GAP;
+      newEnd = minToTime(eMin);
+
+      const workName = pendingWorkSwitch.workName;
+      const prevIdx = getLastActiveTimelineBlockIndex();
+
+      if (prevIdx >= 0) {
+        const prevBlock = timelineBlocks[prevIdx];
+        let prevEndMin = timeToMin(prevEnd);
+        let prevStartMin = timeToMin(prevBlock.startTime);
+        if (!isNaN(prevEndMin)) {
+          if (!isNaN(prevStartMin) && prevEndMin < prevStartMin) {
+            prevEndMin = prevStartMin + MIN_TIMELINE_BLOCK_GAP;
+          }
+          prevBlock.endTime = minToTime(prevEndMin);
+        }
+        if (prevBlock.status === '未選択') {
+          prevBlock.status = workName;
+          prevBlock.startTime = newStart;
+          prevBlock.endTime = newEnd;
+        } else {
+          timelineBlocks.push({
+            id: Date.now(),
+            status: workName,
+            startTime: newStart,
+            endTime: newEnd
+          });
+        }
+      } else {
+        timelineBlocks.push({
+          id: Date.now(),
+          status: workName,
+          startTime: newStart,
+          endTime: newEnd
+        });
+      }
+
+      reconcileTimelineChain_(timelineBlocks);
+      ensureOpenTimelineSlotAfterWork_();
+      closeWorkSwitchModal(false);
+      updateUI();
+    }
+
+    function startProductFromScan_(res) {
+      if (!res) return;
+      if (currentActiveJob) {
+        alert('現在製造中の品種があります。先に「製造終了」で前の品種を確定してください。');
+        focusBarcodeScan();
+        return;
+      }
+      const nextNum = productRows.length + 1;
+      const keyName = '製造' + romanize(nextNum);
+      currentActiveJob = {
+        idName: keyName, productCode: res.productCode, productName: res.productName,
+        qtyPerCase: res.qtyPerCase, startCaseNo: res.startCaseNo || '1',
+        endCaseNo: '', totalQty: 0, defects: {},
+        workers: ''
+      };
+      assignManufacturingToTimeline(keyName);
+      updateUI();
+      onManufacturingRecordStarted();
+      markUnsavedChanges_();
+    }
+
+    function openSwitchoverPromptModal(res) {
+      suspendAutoFocus(120);
+      activeModalState = 'switchover_prompt';
+      const prevName = currentActiveJob ? currentActiveJob.productName : (productRows.length ? productRows[productRows.length - 1].productName : '（なし）');
+      const info = document.getElementById('switchoverPromptProductInfo');
+      if (info) {
+        info.innerHTML = `前品種: <strong>${escapeHtml(prevName)}</strong><br>新品種: <strong>${escapeHtml(res.productName || '')}</strong> [${escapeHtml(res.productCode || '')}]`;
+      }
+      document.getElementById('switchoverPromptModal').style.display = 'flex';
+    }
+
+    function closeSwitchoverPromptModal() {
+      document.getElementById('switchoverPromptModal').style.display = 'none';
+      if (activeModalState === 'switchover_prompt') activeModalState = 'none';
+    }
+
+    function cancelSwitchoverPrompt() {
+      pendingProductScan = null;
+      pendingSwitchoverRoundPrepared = false;
+      closeSwitchoverPromptModal();
+      focusBarcodeScan();
+    }
+
+    function confirmSwitchoverPrompt(doCheck) {
+      const res = pendingProductScan;
+      if (!res) { cancelSwitchoverPrompt(); return; }
+      closeSwitchoverPromptModal();
+      const line = document.getElementById('lineNoSelect').value;
+      if (!line) {
+        alert('ラインを選択してください。');
+        pendingProductScan = null;
+        pendingSwitchoverRoundPrepared = false;
+        focusBarcodeScan();
+        return;
+      }
+      if (!pendingSwitchoverRoundPrepared) {
+        incrementSwitchoverRound_(line);
+        addHinSwitchSlot();
+        pendingSwitchoverRoundPrepared = true;
+      }
+      if (doCheck) {
+        openSwitchoverCheckModal(line);
+      } else {
+        proceedAfterSwitchoverFlow_(res);
+      }
+    }
+
+    function openSwitchoverCheckModal(lineKey) {
+      const bundle = ensureLineBundle(lineKey);
+      const slot = activeSwitchoverSlot || incrementSwitchoverRound_(lineKey);
+      switchoverModalEditSlot = slot;
+      ensureSwitchoverSlotItems_(bundle, slot);
+      const items = bundle.switchoverBySlot[slot] || [];
+      const hint = document.getElementById('switchoverCheckModalHint');
+      if (hint) hint.innerText = `${slot} の点検項目を入力してください（全項目「合格」「不合格」「不要」で記録）。`;
+      const list = document.getElementById('switchoverCheckModalList');
+      if (list) {
+        if (!items.length) {
+          list.innerHTML = '<p class="check-hint">切替点検マスタに項目がありません。</p>';
+        } else {
+          list.innerHTML = items.map((item, i) => {
+            const v = item.value || '-';
+            return `
+              <div class="check-item-row">
+                <div class="check-item-text">🔄 ${escapeHtml(item.text)}</div>
+                <button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" onclick="cycleSwitchoverCheckModalItem(${i})">${judgeDisplayLabel(v)}</button>
+              </div>`;
+          }).join('');
+        }
+      }
+      suspendAutoFocus(120);
+      activeModalState = 'switchover_check';
+      document.getElementById('switchoverCheckModal').style.display = 'flex';
+    }
+
+    function cycleSwitchoverCheckModalItem(idx) {
+      const line = document.getElementById('lineNoSelect').value;
+      const slot = switchoverModalEditSlot;
+      if (!line || !slot) return;
+      const item = lineCheckData[line].switchoverBySlot[slot][idx];
+      item.value = toggleJudgeValue(item.value);
+      stampRecordedAt(item);
+      openSwitchoverCheckModal(line);
+    }
+
+    function closeSwitchoverCheckModal() {
+      document.getElementById('switchoverCheckModal').style.display = 'none';
+      if (activeModalState === 'switchover_check') activeModalState = 'none';
+      switchoverModalEditSlot = null;
+      if (pendingProductScan) openSwitchoverPromptModal(pendingProductScan);
+      else focusBarcodeScan();
+    }
+
+    function confirmSwitchoverCheckModal() {
+      const line = document.getElementById('lineNoSelect').value;
+      const slot = switchoverModalEditSlot;
+      if (line && slot) {
+        const items = (lineCheckData[line].switchoverBySlot[slot] || []);
+        const incomplete = items.filter(it => !it.value || it.value === '-' || it.value === '未選択');
+        if (incomplete.length) {
+          if (!confirm('未入力の項目があります。このまま完了しますか？')) return;
+        }
+      }
+      document.getElementById('switchoverCheckModal').style.display = 'none';
+      activeModalState = 'none';
+      switchoverModalEditSlot = null;
+      markUnsavedChanges_();
+      const res = pendingProductScan;
+      if (res) proceedAfterSwitchoverFlow_(res);
+      else focusBarcodeScan();
+    }
+
+    function proceedAfterSwitchoverFlow_(res) {
+      pendingProductScan = null;
+      pendingSwitchoverRoundPrepared = false;
+      if (currentActiveJob) {
+        alert('前の品種を終了してから、新しい製品ラベルを再度スキャンしてください。\n（「製造終了」ボタンで終ケースを確定）');
+        const line = document.getElementById('lineNoSelect').value;
+        if (line) renderCheckLists(line);
+        focusBarcodeScan();
+        return;
+      }
+      startProductFromScan_(res);
+    }
+
+    // 品種・作業者・作業QR・製品ラベルの自動判別
+    function executeBarcodeQuery(val, rawLabel) {
+      const code = normalizeScanRaw(val);
+      if (!code || scanInFlight) return;
+
+      scanInFlight = true;
+      setScanStatusBusy();
+      const labelForProduct = String(rawLabel || val || '').trim() || code;
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          scanInFlight = false;
+          if (res.success) {
+            if (res.dataType === "worker") {
+              if (!currentActiveJob) {
+                alert("現在製造中の品種がありません。先に製品ラベルをスキャンして製造を開始してください。");
+                focusBarcodeScan();
+                return;
+              }
+              
+              let list = currentActiveJob.workers ? currentActiveJob.workers.split(",").map(s => s.trim()) : [];
+              if (list.includes(res.workerName)) {
+                alert("すでに登録済みの作業者です: " + res.workerName);
+              } else {
+                list.push(res.workerName);
+                currentActiveJob.workers = list.filter(Boolean).join(", "); 
+              }
+              updateUI();
+
+            } else if (res.dataType === "work") {
+              openWorkSwitchModal(res);
+            } else if (res.dataType === "product") {
+              if (needsSwitchoverPromptOnProductScan_()) {
+                pendingProductScan = res;
+                openSwitchoverPromptModal(res);
+                return;
+              }
+              startProductFromScan_(res);
+            }
+          } else {
+            alert("読み込みエラー: " + (res.msg || '登録がないコードです'));
+          }
+          setScanStatusReady();
+          focusBarcodeScan();
+        })
+        .withFailureHandler(function(err) {
+          scanInFlight = false;
+          alert("通信エラーが発生しました: " + err.message);
+          setScanStatusReady();
+          focusBarcodeScan();
+        })
+        .processGeneralBarcodeScan(labelForProduct);
+    }
+
+    function executeDefectQRQuery(rawCode) {
+      const code = normalizeScanRaw(rawCode);
+      if (!code || scanInFlight) return;
+      scanInFlight = true;
+      setScanStatusBusy();
+      google.script.run
+        .withSuccessHandler(function(res) {
+          scanInFlight = false;
+          if(res.success) {
+            temporalDefectName = res.defectName;
+            document.getElementById("defectScanModal").style.display = "none";
+            openDefectQtyModal();
+          } else {
+            alert("不良コードエラー: " + (res.msg || '照合できません'));
+            const inp = document.getElementById("modalDefectCodeInput");
+            if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 100); }
+          }
+          setScanStatusReady();
+        })
+        .withFailureHandler(function(err) {
+          scanInFlight = false;
+          alert("通信エラー: " + err.message);
+          setScanStatusReady();
+        })
+        .processDefectQRScan(code);
+    }
+
+    function openDefectQtyModal() {
+      activeModalState = "defect_qty";
+      document.getElementById("defectQtyModal").style.display = "flex";
+      document.getElementById("targetDefectLabel").innerText = "不良種類：" + temporalDefectName;
+      document.getElementById("modalDefectQtyInput").value = "1"; 
+      isFirstKeyInQty = true; 
+    }
+    function pressQtyNum(num) {
+      const input = document.getElementById("modalDefectQtyInput");
+      if (isFirstKeyInQty) { input.value = String(num); isFirstKeyInQty = false; } 
+      else { if (input.value === "0") { input.value = String(num); } else { input.value = input.value + String(num); }}
+    }
+    function pressQtyClear() { document.getElementById("modalDefectQtyInput").value = "0"; isFirstKeyInQty = false; }
+    function pressQtyBackspace() {
+      const input = document.getElementById("modalDefectQtyInput");
+      let str = input.value;
+      if (str.length <= 1) { input.value = "0"; } else { input.value = str.substring(0, str.length - 1); }
+    }
+    function confirmDefectQty() {
+      let qty = parseInt(document.getElementById("modalDefectQtyInput").value, 10) || 0;
+      if(qty <= 0) { alert("1以上の数量を入力してください。"); return; }
+      if(!currentActiveJob.defects[temporalDefectName]) { currentActiveJob.defects[temporalDefectName] = 0; }
+      currentActiveJob.defects[temporalDefectName] += qty;
+      document.getElementById("defectQtyModal").style.display = "none";
+      temporalDefectName = "";
+      openDefectScanModal(); 
+      updateUI();
+    }
+    function cancelDefectQty() { document.getElementById("defectQtyModal").style.display = "none"; temporalDefectName = ""; openDefectScanModal(); }
+
+    function openDefectScanModal() {
+      if(!currentActiveJob) return;
+      activeModalState = "defect_scan";
+      document.getElementById("defectScanModal").style.display = "flex";
+      const input = document.getElementById("modalDefectCodeInput");
+      input.value = "";
+      setTimeout(() => input.focus(), 150);
+    }
+    function closeDefectScanModal() { activeModalState = "none"; document.getElementById("defectScanModal").style.display = "none"; updateUI(); focusBarcodeScan(); }
+
+    function openEndModal() {
+      if(!currentActiveJob) return;
+      activeModalState = "end";
+      document.getElementById("endModal").style.display = "flex";
+      document.getElementById("modalEndCaseInput").value = "";
+      isFirstKeyInEndCase = true; 
+      setTimeout(() => focusBarcodeScan(), 150);
+    }
+    function pressEndCaseNum(num) {
+      const input = document.getElementById("modalEndCaseInput");
+      if (isFirstKeyInEndCase) { input.value = String(num); isFirstKeyInEndCase = false; } 
+      else { if (input.value === "0" || input.value === "") { input.value = String(num); } else { input.value = input.value + String(num); }}
+    }
+    function pressEndCaseClear() { document.getElementById("modalEndCaseInput").value = ""; isFirstKeyInEndCase = true; }
+    function pressEndCaseBackspace() {
+      const input = document.getElementById("modalEndCaseInput");
+      let str = input.value;
+      if (str.length <= 1) { input.value = ""; isFirstKeyInEndCase = true; } else { input.value = str.substring(0, str.length - 1); }
+    }
+    function copyStartCaseToEndCase() {
+      if (!currentActiveJob) return;
+      document.getElementById("modalEndCaseInput").value = currentActiveJob.startCaseNo;
+      isFirstKeyInEndCase = false;
+    }
+    function handleEndCaseScanValue(val) {
+      let cleanVal = String(val || '').trim();
+      if (!cleanVal) return;
+      if (isFullProductLabel(cleanVal)) cleanVal = extractCaseNoFromLabelClient(cleanVal);
+      else cleanVal = normalizeScanRaw(cleanVal) || cleanVal;
+      document.getElementById("modalEndCaseInput").value = cleanVal;
+      isFirstKeyInEndCase = false;
+      setTimeout(function() { confirmEndProduction(); }, 0);
+    }
+    function closeEndModal() { activeModalState = "none"; document.getElementById("endModal").style.display = "none"; focusBarcodeScan(); }
+
+    function confirmEndProduction() {
+  let val = document.getElementById("modalEndCaseInput").value.trim();
+  if(!val) { alert("終ケースNoを入力、またはスキャンしてください。"); return; }
+
+  if (isFullProductLabel(val)) {
+    val = extractCaseNoFromLabelClient(val);
+  }
+  
+  currentActiveJob.endCaseNo = val;
+
+  let startNum = parseInt(currentActiveJob.startCaseNo, 10) || 1;
+  let endNum = parseInt(currentActiveJob.endCaseNo, 10) || 1;
+  let caseCount = (endNum - startNum) + 1;
+  if (caseCount < 1) caseCount = 1;
+  currentActiveJob.totalQty = caseCount * (currentActiveJob.qtyPerCase || 0);
+
+  productRows.push(currentActiveJob);
+
+  closeManufacturingTimelineBlock(currentActiveJob.idName);
+  ensureOpenTimelineSlotAfterWork_();
+
+  currentActiveJob = null;
+  closeEndModal();
+  updateUI();
+  saveData({ skipRegularCheck: true, quietSuccess: true });
+}
+
+    function loadInitialData() {
+      isRestoringFromServer = true;
+      const hasLocalCache = applyInitCache_();
+      document.getElementById('loading').innerText = hasLocalCache
+        ? "⏳ 実績データ読込中..."
+        : "⏳ システム初期化中...";
+      document.getElementById('loading').style.display = 'flex';
+      const reqDate = getSelectedWorkDate() || todayDateString();
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          saveInitCache_(res);
+          if (!res) {
+            isRestoringFromServer = false;
+            document.getElementById('loading').style.display = 'none';
+            armScannerAfterLoad_();
+            alert("サーバーからのデータ受け取りに失敗しました。");
+            return;
+          }
+          selectedWorkDate = res.workDate || reqDate;
+          isViewingToday = res.isToday !== false;
+          if (res.barcodeConfig) barcodeConfig = res.barcodeConfig;
+          if (res.checkSlotConstants) checkSlotConstants = res.checkSlotConstants;
+          if (res.workMasterList) workMasterList = res.workMasterList;
+
+          const dateInput = document.getElementById('workDateSelect');
+          if (dateInput) {
+            if (!dateInput.value) dateInput.value = selectedWorkDate;
+            else dateInput.value = selectedWorkDate;
+          }
+
+          productRows = res.products || [];
+          timelineBlocks = normalizeTimelineBlocksClient(res.timeline || []);
+          normalizeLegacyCompletedTimeline_(timelineBlocks, productRows);
+          timelineBlocks = normalizeTimelineBlocksClient(timelineBlocks);
+          currentActiveJob = res.currentJob || null;
+          lineCheckData = res.lineCheckData || {};
+
+          if (res.lineList && res.lineList.length > 0) {
+            const selectBox = document.getElementById("lineNoSelect");
+            const prev = selectBox ? selectBox.value : '';
+            if (selectBox) {
+              selectBox.innerHTML = res.lineList.map(line =>
+                `<option value="${line}">${line}</option>`
+              ).join('');
+              if (prev && res.lineList.includes(prev)) selectBox.value = prev;
+            }
+          }
+
+          renderAxis();
+          onLineNoChanged();
+          updateDateViewBadge();
+          updateUI();
+          refreshVarietySelectOptions();
+          regularAlertStateByLine = {};
+          clearAllRegularAlertRecheckTimers_();
+          armRegularAlertSession_();
+          startRegularAlertTimer();
+          hasUnsavedChanges = false;
+          updateUnsavedBadge_();
+          isRestoringFromServer = false;
+          document.getElementById('loading').style.display = 'none';
+          armScannerAfterLoad_();
+          const lineForDraft = document.getElementById('lineNoSelect') ? document.getElementById('lineNoSelect').value : '';
+          setTimeout(function() {
+            tryOfferDraftRestore_(selectedWorkDate, lineForDraft);
+            armScannerAfterLoad_();
+          }, 0);
+        })
+        .withFailureHandler(function(err) {
+          isRestoringFromServer = false;
+          document.getElementById('loading').style.display = 'none';
+          armScannerAfterLoad_();
+          alert("初期データの読み込みに失敗しました。\n共通マスタのID確認、または各シート構造（列数）にズレがないか確認してください。\nエラー詳細: " + err.message);
+        })
+        .getCombinedInitialData(reqDate);
+    }
+
+    function renderAxis() {
+      const axis = document.getElementById('timelineAxis'); axis.innerHTML = '';
+      for (let min = START_AXIS_MIN; min < END_AXIS_MIN; min += 60) {
+        const cell = document.createElement('div'); cell.className = 'axis-cell';
+        const tick = document.createElement('div'); tick.className = 'axis-tick-mark'; cell.appendChild(tick);
+        const text = document.createElement('div'); text.className = 'axis-time-text';
+        text.innerText = `${Math.floor(min / 60).toString().padStart(2, '0')}:00`; cell.appendChild(text);
+        axis.appendChild(cell);
+      }
+    }
+
+    function changeStatus(index, newStatus) {
+      timelineBlocks[index].status = newStatus;
+      updateUI();
+      refreshVarietySelectOptions();
+    }
+
+    function updateUI() {
+      markUnsavedChanges_();
+      const currentDisplay = document.getElementById('currentProdDisplay');
+      const endProdBtn = document.getElementById('endProdBtn');
+      const defectTriggerBtn = document.getElementById('defectTriggerBtn');
+      
+      if (currentActiveJob) {
+        endProdBtn.style.display = "block"; defectTriggerBtn.style.display = "block";
+        
+        let defectHtml = "";
+        let dfKeys = Object.keys(currentActiveJob.defects || {});
+        if(dfKeys.length > 0) {
+          defectHtml = `<div class="defect-badge-list">`;
+          dfKeys.forEach(k => { if(currentActiveJob.defects[k] > 0) defectHtml += `<span class="defect-badge">⚠️ ${k}: ${currentActiveJob.defects[k]}個</span>`; });
+          defectHtml += `</div>`;
+        } else { defectHtml = `<div style="font-size:11px; color:#94a3b8; margin-top:4px;">不良品の記録はありません</div>`; }
+
+        let workerBadgesHtml = `<span style="font-size:11px; color:#94a3b8;">(未登録)</span>`;
+        if (currentActiveJob.workers) {
+          workerBadgesHtml = `<div class="worker-badge-list">`;
+          currentActiveJob.workers.split(",").forEach(w => {
+            if (w.trim()) workerBadgesHtml += `<span class="worker-badge">👤 ${w.trim()}</span>`;
+          });
+          workerBadgesHtml += `</div>`;
+        }
+
+        currentDisplay.innerHTML = `
+          <div class="current-info-row">
+            <div style="color:#ea580c; font-size:15px;">${currentActiveJob.idName}</div>
+            <div>コード: <span style="color:#2563eb;">${currentActiveJob.productCode}</span></div>
+            <div>品名: ${currentActiveJob.productName}</div>
+            <div>始ケース: <span style="background:#ffedd5; padding:2px 6px; border-radius:3px;">${currentActiveJob.startCaseNo}</span></div>
+          </div>
+          <div style="border-top:1px dashed #fdba74; padding-top:6px; margin-top:4px; display:flex; align-items:center; gap:8px;">
+            <strong style="font-size:12px; color:#0369a1; white-space:nowrap;">👥 現在の作業者:</strong>
+            ${workerBadgesHtml}
+          </div>
+          <div style="border-top:1px dashed #fdba74; padding-top:6px;"><strong>【リアルタイム不良カウント】</strong>${defectHtml}</div>
+        `;
+      } else {
+        endProdBtn.style.display = "none"; defectTriggerBtn.style.display = "none";
+        currentDisplay.innerHTML = `<span style="color:#64748b; font-size:12px; text-align:center;">製品ラベルをスキャンしてください。</span>`;
+      }
+
+      const historyBody = document.getElementById('historyTableBody'); historyBody.innerHTML = '';
+      if (productRows.length === 0) {
+        historyBody.innerHTML = '<tr><td style="text-align:center; color:#64748b; padding:15px;">製造を終了したデータがここに蓄積されます。</td></tr>';
+      } else {
+        productRows.forEach((row) => {
+          let defectSummary = "";
+          Object.keys(row.defects || {}).forEach(k => { if(row.defects[k] > 0) defectSummary += `${k}(${row.defects[k]}個) `; });
+          if(!defectSummary) defectSummary = "-";
+
+          const tr1 = document.createElement('tr'); tr1.className = "row-first-line";
+          tr1.innerHTML = `<td colspan="4" style="padding-bottom:2px;"><span style="font-weight:bold; color:#1e3a8a; background:#e0f2fe; padding:1px 5px; border-radius:3px; margin-right:6px;">${row.idName}</span><span style="color:#2563eb; font-weight:bold; margin-right:8px;">[${row.productCode}]</span><span style="font-weight:bold; color:#1e293b;">${row.productName}</span></td>`;
+          
+          const tr2 = document.createElement('tr'); tr2.className = "row-second-line border-double-bottom";
+          tr2.innerHTML = `<td colspan="4" style="padding-top:2px; font-size:11px; color:#475569;"><span style="margin-right:12px;">▶ 始ケース: <strong>${row.startCaseNo}</strong></span><span style="margin-right:12px;">終ケース: <strong>${row.endCaseNo}</strong></span><span style="margin-right:12px;">良品数量: <strong style="color:#10b981;">${parseInt(row.totalQty || 0).toLocaleString()}</strong>個</span><br><span>不良内訳: <strong style="color:#b91c1c;">${defectSummary}</strong></span><span style="margin-left:12px;">作業者: <strong style="color:#0369a1;">${row.workers || "-"}</strong></span></td>`;
+          
+          historyBody.appendChild(tr1); historyBody.appendChild(tr2);
+        });
+      }
+
+      const barTrack = document.getElementById('stackedBar'); barTrack.innerHTML = '';
+      timelineBlocks.forEach((block) => {
+        const bStart = timeToMin(block.startTime); const bEnd = timeToMin(block.endTime);
+        const leftPercent = ((bStart - START_AXIS_MIN) / TOTAL_DURATION) * 100;
+        const widthPercent = ((bEnd - bStart) / TOTAL_DURATION) * 100;
+        if (widthPercent > 0) {
+          const visualBlock = document.createElement('div');
+          visualBlock.className = `stacked-block ${getTimelineBarColorClass(block.status)}`;
+          visualBlock.style.left = `${leftPercent}%`; visualBlock.style.width = `${widthPercent}%`;
+          if (widthPercent > 5) { visualBlock.innerText = block.status; }
+          barTrack.appendChild(visualBlock);
+        }
+      });
+
+      const listContainer = document.getElementById('editListContainer'); listContainer.innerHTML = '';
+      timelineBlocks.forEach((block, index) => {
+        if (!selectedTargetMap[index]) selectedTargetMap[index] = "start";
+        const currentTarget = selectedTargetMap[index];
+        const editRow = document.createElement('div'); editRow.className = 'edit-row';
+        const selectClass = getTimelineSelectClass(block.status);
+        const optionsHtml = buildTimelineStatusOptionsHtml(block.status);
+
+        editRow.innerHTML = `
+          <div class="edit-row-top">
+            <div class="col-no">No.${index + 1}</div>
+            <div class="col-select"><select class="status-select ${selectClass}" onchange="changeStatus(${index}, this.value)">${optionsHtml}</select></div>
+            <div class="col-time-container">
+              <span class="time-clickable ${currentTarget === 'start' ? 'selected' : ''}" onclick="event.stopPropagation(); setTimeTarget(${index}, 'start')">${block.startTime}</span><span>～</span>
+              <span class="time-clickable ${currentTarget === 'end' ? 'selected' : ''}" onclick="event.stopPropagation(); setTimeTarget(${index}, 'end')">${block.endTime}</span>
+            </div>
+            <div style="display:flex; gap:2px;" title="オレンジの時刻をタップしてから◀▶で5分単位調整">
+              <button type="button" class="btn-arrow" onclick="event.stopPropagation(); changeSelectedTime(${index}, -5)">◀</button>
+              <button type="button" class="btn-arrow" onclick="event.stopPropagation(); changeSelectedTime(${index}, 5)">▶</button>
+            </div>
+            <div style="display:flex; gap:4px;"><button style="background:#3b82f6; border:none; color:white; width:24px; height:26px; font-weight:bold; border-radius:4px;" onclick="insertRowAt(${index})">＋</button><button style="background:#ef4444; border:none; color:white; width:24px; height:26px; font-weight:bold; border-radius:4px;" onclick="deleteRowAt(${index})">×</button></div>
+          </div>
+        `;
+        listContainer.appendChild(editRow);
+      });
+    }
+
+    function setTimeTarget(index, type) { selectedTargetMap[index] = type; updateUI(); }
+    function normalizeTimeStr(t) {
+      if (t === null || t === undefined || t === '') return '';
+      const m = String(t).trim().match(/^(\d{1,2}):(\d{2})/);
+      if (!m) return '';
+      return `${parseInt(m[1], 10).toString().padStart(2, '0')}:${m[2]}`;
+    }
+
+    function timeToMin(t) {
+      const norm = normalizeTimeStr(t);
+      if (!norm) return NaN;
+      const [h, m] = norm.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function normalizeTimelineBlocksClient(blocks) {
+      const axisStart = START_AXIS_MIN;
+      const axisEnd = END_AXIS_MIN;
+      if (!blocks || blocks.length === 0) {
+        return [{ id: Date.now(), status: '未選択', startTime: '08:30', endTime: '08:45' }];
+      }
+      const result = blocks.map((b, i) => {
+        let startMin = timeToMin(b.startTime);
+        let endMin = timeToMin(b.endTime);
+        if (isNaN(startMin)) startMin = axisStart + i * 15;
+        if (isNaN(endMin) || endMin <= startMin) endMin = startMin + 15;
+        startMin = roundMinutesTo5Step(Math.max(axisStart, Math.min(startMin, axisEnd - 15)));
+        endMin = roundMinutesTo5Step(Math.max(startMin + MIN_TIMELINE_BLOCK_GAP, Math.min(endMin, axisEnd)));
+        return {
+          id: b.id || Date.now() + i,
+          status: b.status || '未選択',
+          startTime: minToTime(startMin),
+          endTime: minToTime(endMin)
+        };
+      });
+      for (let j = 1; j < result.length; j++) {
+        const prevEnd = timeToMin(result[j - 1].endTime);
+        let startMin = timeToMin(result[j].startTime);
+        if (startMin < prevEnd) {
+          result[j].startTime = minToTime(prevEnd);
+          let endMin = timeToMin(result[j].endTime);
+          if (endMin <= prevEnd) result[j].endTime = minToTime(prevEnd + 15);
+        }
+      }
+      return result;
+    }
+
+    function reconcileTimelineChain_(blocks) {
+      if (!blocks || blocks.length === 0) return;
+      const gap = MIN_TIMELINE_BLOCK_GAP;
+
+      for (let i = 0; i < blocks.length; i++) {
+        let startMin = timeToMin(blocks[i].startTime);
+        let endMin = timeToMin(blocks[i].endTime);
+        if (isNaN(startMin)) startMin = START_AXIS_MIN + i * 15;
+        if (isNaN(endMin)) endMin = startMin + 15;
+
+        if (i > 0) {
+          const prevEnd = timeToMin(blocks[i - 1].endTime);
+          if (!isNaN(prevEnd) && startMin < prevEnd) startMin = prevEnd;
+        }
+
+        startMin = roundMinutesTo5Step(Math.max(START_AXIS_MIN, Math.min(startMin, END_AXIS_MIN - gap)));
+        if (endMin <= startMin) endMin = startMin + gap;
+        endMin = roundMinutesTo5Step(Math.min(endMin, END_AXIS_MIN));
+
+        blocks[i].startTime = minToTime(startMin);
+        blocks[i].endTime = minToTime(endMin);
+      }
+
+      for (let j = 0; j < blocks.length - 1; j++) {
+        let endMin = timeToMin(blocks[j].endTime);
+        let nextStart = timeToMin(blocks[j + 1].startTime);
+        let nextEnd = timeToMin(blocks[j + 1].endTime);
+        if (isNaN(endMin) || isNaN(nextStart) || isNaN(nextEnd)) continue;
+
+        endMin = roundMinutesTo5Step(endMin);
+        if (nextStart < endMin) {
+          blocks[j + 1].startTime = minToTime(endMin);
+          nextStart = endMin;
+        }
+        if (nextEnd <= nextStart) {
+          blocks[j + 1].endTime = minToTime(roundMinutesTo5Step(Math.min(nextStart + gap, END_AXIS_MIN)));
+        }
+      }
+    }
+
+    function changeSelectedTime(index, val) {
+      const currentBlock = timelineBlocks[index];
+      const target = selectedTargetMap[index] || 'start';
+      let startMin = timeToMin(currentBlock.startTime);
+      let endMin = timeToMin(currentBlock.endTime);
+      if (isNaN(startMin)) startMin = START_AXIS_MIN + index * 15;
+      if (isNaN(endMin) || endMin <= startMin) endMin = startMin + MIN_TIMELINE_BLOCK_GAP;
+      const gap = MIN_TIMELINE_BLOCK_GAP;
+
+      if (target === 'start') {
+        let newStart = startMin + val;
+        if (index > 0) {
+          const prevEnd = timeToMin(timelineBlocks[index - 1].endTime);
+          if (!isNaN(prevEnd)) newStart = Math.max(newStart, prevEnd);
+        }
+        newStart = Math.max(START_AXIS_MIN, newStart);
+        newStart = Math.min(newStart, endMin - gap, END_AXIS_MIN - gap);
+        currentBlock.startTime = minToTime(newStart);
+        if (endMin <= newStart) {
+          currentBlock.endTime = minToTime(Math.min(newStart + gap, END_AXIS_MIN));
+        }
+        if (index > 0) {
+          timelineBlocks[index - 1].endTime = currentBlock.startTime;
+        }
+      } else {
+        let newEnd = endMin + val;
+        newEnd = Math.max(newEnd, startMin + gap);
+        newEnd = Math.min(newEnd, END_AXIS_MIN);
+        currentBlock.endTime = minToTime(newEnd);
+        if (index < timelineBlocks.length - 1) {
+          const next = timelineBlocks[index + 1];
+          let nextStart = timeToMin(next.startTime);
+          let nextEnd = timeToMin(next.endTime);
+          if (isNaN(nextStart)) nextStart = newEnd;
+          if (isNaN(nextEnd)) nextEnd = newEnd + gap;
+          if (nextStart < newEnd) {
+            next.startTime = minToTime(newEnd);
+            nextStart = newEnd;
+          }
+          if (nextEnd <= nextStart) {
+            next.endTime = minToTime(Math.min(nextStart + gap, END_AXIS_MIN));
+          }
+        }
+      }
+
+      reconcileTimelineChain_(timelineBlocks);
+      updateUI();
+    }
+    function insertRowAt(index) {
+      let base = timeToMin(timelineBlocks[index].endTime);
+      if (isNaN(base)) base = START_AXIS_MIN;
+      timelineBlocks.splice(index + 1, 0, {
+        id: Date.now(), status: '未選択',
+        startTime: minToTime(base),
+        endTime: minToTime(Math.min(base + 15, END_AXIS_MIN))
+      });
+      reconcileTimelineChain_(timelineBlocks);
+      updateUI();
+    }
+    function deleteRowAt(index) {
+      if (timelineBlocks.length <= 1) return;
+      if (confirm(`No.${index + 1} を削除しますか？`)) {
+        timelineBlocks.splice(index, 1);
+        reconcileTimelineChain_(timelineBlocks);
+        updateUI();
+      }
+    }
+    function minToTime(m) {
+      let rounded = roundMinutesTo5Step(m);
+      if (isNaN(rounded)) rounded = START_AXIS_MIN;
+      const clamped = Math.max(0, Math.min(rounded, 24 * 60 - 1));
+      return `${Math.floor(clamped / 60).toString().padStart(2, '0')}:${(clamped % 60).toString().padStart(2, '0')}`;
+    }
+
+    // 確定保存（options.skipRegularCheck: 製造終了時など定時未実施チェックを省略）
+    function saveData(options) {
+      options = options || {};
+      const activeLineNo = document.getElementById("lineNoSelect").value;
+      const workDate = getSelectedWorkDate();
+      if (!activeLineNo) { alert("ラインが選択されていません"); return; }
+      if (!workDate) { alert("作業日が選択されていません"); return; }
+
+      if (!options.skipRegularCheck) {
+        const unfinished = collectUnfinishedRegularForSave_(activeLineNo);
+        if (unfinished.length > 0) {
+          openRegularSaveWarnModal(unfinished);
+          return;
+        }
+      }
+
+      document.getElementById('loading').innerText = `💾 [${workDate} / ${activeLineNo}] を保存中...`;
+      document.getElementById('loading').style.display = 'flex';
+
+      google.script.run
+        .withSuccessHandler(function(msg) {
+          document.getElementById('loading').style.display = 'none';
+          hasUnsavedChanges = false;
+          updateUnsavedBadge_();
+          clearDraftFromLocal_(workDate, activeLineNo);
+          if (options.quietSuccess) {
+            const st = document.getElementById('scanStatus');
+            if (st) {
+              st.innerText = '製造終了を保存しました';
+              st.style.background = '#bbf7d0';
+            }
+          } else {
+            alert(msg);
+          }
+          loadInitialData();
+        })
+        .withFailureHandler(function(err) {
+          document.getElementById('loading').style.display = 'none';
+          alert("保存に失敗しました: " + err.message);
+        })
+        .updateTimelineAndProducts(timelineBlocks, productRows, currentActiveJob, activeLineNo, lineCheckData, workDate);
+    }
+
+    function exportReportSheet() {
+      const activeLineNo = document.getElementById("lineNoSelect").value;
+      const workDate = getSelectedWorkDate();
+      document.getElementById('loading').innerText = '📊 集計シートを作成中...';
+      document.getElementById('loading').style.display = 'flex';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          document.getElementById('loading').style.display = 'none';
+          alert(res.message || '集計シートを作成しました。');
+        })
+        .withFailureHandler(function(err) {
+          document.getElementById('loading').style.display = 'none';
+          alert('集計シート作成に失敗: ' + err.message);
+        })
+        .generateDailyReportSheet(workDate, activeLineNo);
+    }
+
+    function downloadBase64Pdf(base64, fileName) {
+      const binary = atob(base64);
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || '製造日報.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportReportPdf() {
+      const activeLineNo = document.getElementById("lineNoSelect").value;
+      const workDate = getSelectedWorkDate();
+      document.getElementById('loading').innerText = '📄 PDFを生成中...';
+      document.getElementById('loading').style.display = 'flex';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          document.getElementById('loading').style.display = 'none';
+          if (!res.success) {
+            alert(res.msg || 'PDF生成に失敗しました。');
+            return;
+          }
+          downloadBase64Pdf(res.base64, res.fileName);
+          alert(res.message + '\nPDFのダウンロードを開始しました。');
+        })
+        .withFailureHandler(function(err) {
+          document.getElementById('loading').style.display = 'none';
+          alert('PDF生成に失敗: ' + err.message);
+        })
+        .exportDailyReportPdf(workDate, activeLineNo);
+    }
+  </script>
+</body>
+</html>

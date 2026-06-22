@@ -1,0 +1,1 @@
+clasp deploy -i [AKfycbwwXS9eJA2HmnO42uwViau2RrQVcHAJl6-30PSih01B2B7Xe9r021i50tnA5qVj9I0H] -d "バグを修正"
