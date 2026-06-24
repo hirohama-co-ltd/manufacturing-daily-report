@@ -18,6 +18,9 @@ var WORK_MASTER_SAMPLES = [
   ['WORK_ADJUST', '調整', '調整', 2]
 ];
 
+/** 点検マスタ共通：改定日・アクション・旧項目名のデフォルト */
+var CHECK_MASTER_REV_DEFAULTS = ['2000-01-01', '追加', ''];
+
 /** 共通マスタ「社員マスタ」（旧作業者マスタと統合） */
 var EMPLOYEE_MASTER_HEADERS = [
   '社員ID', '氏名', 'Email', '事業所', '部署', 'ロール', '日当(円)', '有効', 'QR表示'
@@ -54,44 +57,44 @@ function initializeSpreadsheet(options) {
     },
     {
       name: '日常点検マスタ',
-      headers: ['ライン', '項目'],
+      headers: ['ライン', '項目', '改定日', 'アクション', '旧項目名'],
       tabColor: '#e9d5ff',
       samples: addSamples ? [
-        ['1号ライン', '清掃・ゴミ箱の確認'],
-        ['1号ライン', '潤滑油・消耗品の確認'],
-        ['2号ライン', '清掃・ゴミ箱の確認']
+        ['1号ライン', '清掃・ゴミ箱の確認', '2000-01-01', '追加', ''],
+        ['1号ライン', '潤滑油・消耗品の確認', '2000-01-01', '追加', ''],
+        ['2号ライン', '清掃・ゴミ箱の確認', '2000-01-01', '追加', '']
       ] : null
     },
     {
       name: 'センサチェックマスタ',
-      headers: ['ライン', '項目', '実施区分'],
+      headers: ['ライン', '項目', '実施区分', '改定日', 'アクション', '旧項目名'],
       tabColor: '#fde68a',
       samples: addSamples ? [
-        ['1号ライン', '検知センサ A（通過確認）', '午前,午後,品切'],
-        ['1号ライン', '停止センサ B', '午前,午後'],
-        ['2号ライン', '検知センサ A（通過確認）', '午前,午後,品切']
+        ['1号ライン', '検知センサ A（通過確認）', '午前,午後,品切', '2000-01-01', '追加', ''],
+        ['1号ライン', '停止センサ B', '午前,午後', '2000-01-01', '追加', ''],
+        ['2号ライン', '検知センサ A（通過確認）', '午前,午後,品切', '2000-01-01', '追加', '']
       ] : null
     },
     {
       name: '定時検査マスタ',
-      headers: ['ライン', '項目', '判定種別', '実施区分'],
+      headers: ['ライン', '項目', '判定種別', '実施区分', '改定日', 'アクション', '旧項目名'],
       tabColor: '#a5f3fc',
       samples: addSamples ? [
-        ['1号ライン', '外観・異物の有無', '合否', '始業,10時,13時,15時,17時,終業'],
-        ['1号ライン', '重量', 'g', '13時,終業'],
-        ['2号ライン', '外観・異物の有無', '合否', '始業,13時,終業']
+        ['1号ライン', '外観・異物の有無', '合否', '始業,10時,13時,15時,17時,終業', '2000-01-01', '追加', ''],
+        ['1号ライン', '重量', 'g', '13時,終業', '2000-01-01', '追加', ''],
+        ['2号ライン', '外観・異物の有無', '合否', '始業,13時,終業', '2000-01-01', '追加', '']
       ] : null
     },
     {
       name: '切替点検マスタ',
-      headers: ['ライン', '項目'],
+      headers: ['ライン', '項目', '改定日', 'アクション', '旧項目名'],
       tabColor: '#fbcfe8',
       samples: addSamples ? [
-        ['1号ライン', '金型・治具の取り外し確認'],
-        ['1号ライン', '前品種残材・ラベルの除去確認'],
-        ['1号ライン', '切替後の試運転・サンプル確認'],
-        ['2号ライン', '金型・治具の取り外し確認'],
-        ['2号ライン', '前品種残材・ラベルの除去確認']
+        ['1号ライン', '金型・治具の取り外し確認', '2000-01-01', '追加', ''],
+        ['1号ライン', '前品種残材・ラベルの除去確認', '2000-01-01', '追加', ''],
+        ['1号ライン', '切替後の試運転・サンプル確認', '2000-01-01', '追加', ''],
+        ['2号ライン', '金型・治具の取り外し確認', '2000-01-01', '追加', ''],
+        ['2号ライン', '前品種残材・ラベルの除去確認', '2000-01-01', '追加', '']
       ] : null
     },
     { name: REPORT_SHEET_NAME, headers: ['項目', '内容'], tabColor: '#f1f5f9' }
@@ -113,6 +116,7 @@ function initializeSpreadsheet(options) {
   });
 
   writeSetupGuideSheet_(ss, forceHeaders);
+  writeCheckMasterGuideSheet_(ss, forceHeaders);
 
   var created = logs.filter(function(l) { return l.created; }).map(function(l) { return l.name; });
   var headerUpdated = logs.filter(function(l) { return l.headerSet; }).map(function(l) { return l.name; });
@@ -283,6 +287,17 @@ function headersMatch_(row, expected) {
   return true;
 }
 
+/** 2列ガイド用：各行を必ず2列に揃える（setValues エラー防止） */
+function normalizeGuideRowsTo2Cols_(rows) {
+  return rows.map(function(row) {
+    row = row || [];
+    return [
+      row[0] != null ? String(row[0]) : '',
+      row[1] != null ? String(row[1]) : ''
+    ];
+  });
+}
+
 /**
  * セットアップ手順シート
  */
@@ -302,7 +317,7 @@ function writeSetupGuideSheet_(ss, forceRewrite) {
     ['手順', '内容'],
     ['1', 'メニュー「製造日報」→「全シート＋ヘッダーを一括作成」を実行'],
     ['2', '作業マスタ: A列QRコードをQR化（E列QR表示に数式自動設定）。製造①②は登録しない'],
-    ['3', '点検マスタ（日常/センサ/定時/切替）にライン・項目・実施区分を登録'],
+    ['3', '点検マスタ（日常/センサ/定時/切替）にライン・項目・実施区分・改定日・アクションを登録（詳細は「点検マスタ運用」シート）'],
     ['4', '設定.gs の MASTER_SS_ID を共通マスタのIDに設定'],
     ['5', 'メニュー「共通マスタを初期化」→ 社員マスタ（EMP001形式+QR表示）等'],
     ['6', 'Apps Script を Webアプリとしてデプロイ'],
@@ -318,6 +333,14 @@ function writeSetupGuideSheet_(ss, forceRewrite) {
     ['切替点検マスタ', '品種切替時の点検項目（ライン別）'],
     ['日報集計', 'レポート出力用（自動生成）'],
     [],
+    ['点検マスタ 改定日ルール', ''],
+    ['改定日', 'この行の変更が有効になる日（yyyy-MM-dd）'],
+    ['アクション「追加」', '改定日以降の作業日に表示（改定日より前は非表示）'],
+    ['アクション「廃止」', '改定日より前の作業日にのみ表示（改定日以降は非表示）'],
+    ['アクション「変更」', '新項目行。旧項目名に改名前の名称を入力（旧行は別途「廃止」行を追加）'],
+    ['旧項目名', '変更時のみ。点検実績の旧名称と紐づけ'],
+    ['既存行の移行', '改定日=2000-01-01、アクション=追加 で全過去日有効'],
+    [],
     ['作業マスタ QRルール', ''],
     ['QRにする列', 'A列「QRコード」（例: WORK_REPAIR）'],
     ['QRにしない列', 'B列「作業区分名」（修理・調整など表示用）'],
@@ -332,11 +355,110 @@ function writeSetupGuideSheet_(ss, forceRewrite) {
     ['品目', '任意シート名で品目CD・品名・入数']
   ];
 
-  sheet.getRange(1, 1, guide.length, 2).setValues(guide);
+  sheet.getRange(1, 1, guide.length, 2).setValues(normalizeGuideRowsTo2Cols_(guide));
   sheet.getRange(1, 1, 1, 2).setFontWeight('bold').setFontSize(12);
   sheet.setColumnWidths(1, 1, 200);
   sheet.setColumnWidths(2, 1, 420);
   sheet.setFrozenRows(1);
+}
+
+var CHECK_MASTER_GUIDE_SHEET_NAME = '点検マスタ運用';
+
+/**
+ * 点検マスタ運用説明シート
+ */
+function writeCheckMasterGuideSheet_(ss, forceRewrite) {
+  var sheet = ss.getSheetByName(CHECK_MASTER_GUIDE_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(CHECK_MASTER_GUIDE_SHEET_NAME);
+  } else if (!forceRewrite && sheet.getLastRow() > 3) {
+    return;
+  }
+
+  sheet.clear();
+  var guide = [
+    ['製造日報アプリ｜点検マスタ運用説明'],
+    [],
+    ['概要', '日常点検・センサチェック・定時検査・切替点検の項目は、日報用スプレッドシートの各点検マスタで管理します。Webアプリは作業日ごとに有効な行だけを読み込み、点検実績とマージして表示します。'],
+    [],
+    ['対象シート', '列構成'],
+    ['日常点検マスタ', 'ライン / 項目 / 改定日 / アクション / 旧項目名'],
+    ['切替点検マスタ', 'ライン / 項目 / 改定日 / アクション / 旧項目名'],
+    ['センサチェックマスタ', 'ライン / 項目 / 実施区分 / 改定日 / アクション / 旧項目名'],
+    ['定時検査マスタ', 'ライン / 項目 / 判定種別 / 実施区分 / 改定日 / アクション / 旧項目名'],
+    ['実施区分', 'センサ: 午前・午後・品切 等（カンマ区切り可）。定時: 始業・10時・13時 等。空欄=全スロット'],
+    ['ライン', 'Webアプリのライン選択と同じ表記（例: 1号ライン）'],
+    [],
+    ['改定日・アクション・旧項目名', ''],
+    ['改定日', 'この行の変更が有効になる日（yyyy-MM-dd）。空欄は 2000-01-01 扱い'],
+    ['アクション「追加」', '改定日以降の作業日に表示。改定日より前の作業日では非表示'],
+    ['アクション「廃止」', '改定日より前の作業日にのみ表示。改定日以降の作業日では非表示'],
+    ['アクション「変更」', '新しい項目名の行。旧項目名に改名前の名称を入力する'],
+    ['旧項目名', '変更時のみ入力。保存済み点検実績の旧名称と紐づける'],
+    ['変更時の注意', '名称変更は「変更」行＋旧名称の「廃止」行の2行セットで登録する'],
+    [],
+    ['運用例：新規追加', ''],
+    ['例（日常点検）', '1号ライン | 潤滑油レベル確認 | 2026-04-01 | 追加 | （空）'],
+    ['効果', '2026-04-01 以降の作業日に「潤滑油レベル確認」が表示される'],
+    [],
+    ['運用例：廃止', ''],
+    ['例（日常点検）', '1号ライン | 旧チェック項目 | 2026-04-01 | 廃止 | （空）'],
+    ['効果', '2026-03-31 以前の作業日では表示、2026-04-01 以降は非表示'],
+    [],
+    ['運用例：名称変更', ''],
+    ['変更行', '1号ライン | 新チェック項目 | 2026-04-01 | 変更 | 旧チェック項目'],
+    ['廃止行', '1号ライン | 旧チェック項目 | 2026-04-01 | 廃止 | （空）'],
+    ['効果', '2026-04-01 以降は新名称。それ以前は旧名称。過去の点検実績は旧名称で紐づく'],
+    [],
+    ['既存行の移行', ''],
+    ['推奨設定', '改定日=2000-01-01、アクション=追加、旧項目名=空'],
+    ['意味', '初回導入時の既存項目を、すべての過去日・未来日で有効にする'],
+    [],
+    ['過去データの扱い', ''],
+    ['旧バッジ', 'マスタに無いが点検実績に残る項目は、Webアプリで「旧」と表示される'],
+    ['過去日の閲覧', '本日以外の作業日を開くと、点検入力は読み取り専用（変更不可）'],
+    ['過去日の保存', '保存時に確認ダイアログ。現在のマスタ構成で点検実績が上書きされる'],
+    [],
+    ['運用ツール', ''],
+    ['入力チェック', 'メニュー「製造日報」→「点検マスタ改定日の入力チェック」'],
+    ['説明の更新', 'メニュー「製造日報」→「点検マスタ運用説明を更新」'],
+    [],
+    ['よくあるミス', ''],
+    ['変更だけ追加', '名称変更時に旧名称の「廃止」行を忘れると、新旧両方が表示される場合がある'],
+    ['ライン名不一致', 'マスタのライン名がWebアプリの選択肢と1文字でも違うと項目が出ない'],
+    ['改定日の形式', 'yyyy-MM-dd 形式（例: 2026-04-01）。日付として解釈できない値は避ける'],
+    ['変更で旧項目名が空', '入力チェックメニューで警告される。必ず旧名称を入力する']
+  ];
+
+  sheet.getRange(1, 1, guide.length, 2).setValues(normalizeGuideRowsTo2Cols_(guide));
+  sheet.getRange(1, 1, 1, 2).setFontWeight('bold').setFontSize(12);
+  sheet.setColumnWidths(1, 1, 220);
+  sheet.setColumnWidths(2, 1, 520);
+  sheet.setFrozenRows(1);
+  try { sheet.setTabColor('#dbeafe'); } catch (e) { /* ignore */ }
+}
+
+/**
+ * Webアプリから点検マスタ運用シートへのURL
+ */
+function getCheckMasterGuideUrl_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(CHECK_MASTER_GUIDE_SHEET_NAME);
+  if (sheet) return ss.getUrl() + '#gid=' + sheet.getSheetId();
+  return ss.getUrl();
+}
+
+function menuRefreshCheckMasterGuide() {
+  var ui = SpreadsheetApp.getUi();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  writeCheckMasterGuideSheet_(ss, true);
+  ui.alert(
+    '点検マスタ運用',
+    '「' + CHECK_MASTER_GUIDE_SHEET_NAME + '」シートを更新しました。\n\n'
+      + 'シートタブから内容を確認してください。\n'
+      + 'Webアプリの点検タブにも運用案内リンクが表示されます（再デプロイ後）。',
+    ui.ButtonSet.OK
+  );
 }
 
 function onOpen() {
@@ -347,6 +469,8 @@ function onOpen() {
     .addSeparator()
     .addItem('切替点検マスタシートを作成', 'menuEnsureSwitchoverMasterSheet')
     .addItem('切替点検マスタの読込確認', 'menuCheckSwitchoverMaster')
+    .addItem('点検マスタ改定日の入力チェック', 'menuValidateCheckMasterRevisions')
+    .addItem('点検マスタ運用説明を更新', 'menuRefreshCheckMasterGuide')
     .addSeparator()
     .addItem('作業マスタのQR表示を再生成', 'menuRefreshWorkMasterQr')
     .addSeparator()
@@ -363,7 +487,7 @@ function menuEnsureSwitchoverMasterSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var spec = {
     name: '切替点検マスタ',
-    headers: ['ライン', '項目'],
+    headers: ['ライン', '項目', '改定日', 'アクション', '旧項目名'],
     tabColor: '#fbcfe8',
     samples: null
   };
@@ -375,7 +499,7 @@ function menuEnsureSwitchoverMasterSheet() {
   var msg = result.created
     ? '「切替点検マスタ」を新規作成しました。'
     : '「切替点検マスタ」は既にあります。';
-  msg += '\n\nA1=ライン / B1=項目\n2行目以降に、画面上のライン名と同じ表記で登録してください。\n';
+  msg += '\n\nA1=ライン / B1=項目 / C1=改定日 / D1=アクション / E1=旧項目名\n2行目以降に、画面上のライン名と同じ表記で登録してください。\n';
   msg += '（例: 1号ライン）\n\n登録後は clasp push → clasp deploy 済みの Webアプリを再読み込みしてください。';
   ui.alert('切替点検マスタ', msg, ui.ButtonSet.OK);
 }
@@ -385,7 +509,7 @@ function menuEnsureSwitchoverMasterSheet() {
  */
 function menuCheckSwitchoverMaster() {
   var ui = SpreadsheetApp.getUi();
-  var master = loadCheckMasterFromSheet();
+  var master = loadCheckMasterFromSheet(new Date());
   var lines = Object.keys(master).filter(function(line) {
     return master[line].switchoverMasterItems && master[line].switchoverMasterItems.length > 0;
   });
@@ -406,6 +530,16 @@ function menuCheckSwitchoverMaster() {
     return '・' + line + ' … ' + master[line].switchoverMasterItems.length + ' 項目';
   }).join('\n');
   ui.alert('切替点検マスタ', '読込 OK:\n' + detail, ui.ButtonSet.OK);
+}
+
+function menuValidateCheckMasterRevisions() {
+  var ui = SpreadsheetApp.getUi();
+  var warnings = validateCheckMasterRevisions_();
+  if (!warnings.length) {
+    ui.alert('点検マスタ改定日', '入力チェック: 問題は見つかりませんでした。', ui.ButtonSet.OK);
+    return;
+  }
+  ui.alert('点検マスタ改定日', '確認事項:\n\n・' + warnings.join('\n・'), ui.ButtonSet.OK);
 }
 
 function menuRefreshWorkMasterQr() {

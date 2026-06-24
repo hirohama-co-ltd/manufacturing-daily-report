@@ -35,7 +35,7 @@ function processGeneralBarcodeScan(rawCode) {
  */
 function processWorkerQRScan(rawCode) {
   try {
-    var code = normalizeServerCode(rawCode);
+    var code = normalizeEmployeeCode_(rawCode);
     if (!code || !MASTER_SS_ID) return { success: false };
 
     var masterSs = SpreadsheetApp.openById(MASTER_SS_ID);
@@ -51,11 +51,16 @@ function processWorkerQRScan(rawCode) {
       .map(function(h) { return String(h || '').trim(); });
     var idCol = findMasterColumnIndex_(headers, ['社員ID', 'QRコード', 'ID']);
     var nameCol = findMasterColumnIndex_(headers, ['氏名', '作業者名', '名前']);
+    var activeCol = findMasterColumnIndex_(headers, ['有効']);
     if (idCol === -1 || nameCol === -1) return { success: false };
 
     var wData = workerSheet.getRange(2, 1, lastRow, workerSheet.getLastColumn()).getValues();
     for (var i = 0; i < wData.length; i++) {
-      var masterCodeStr = normalizeServerCode(String(wData[i][idCol]));
+      if (activeCol >= 0) {
+        var active = String(wData[i][activeCol] || '').trim();
+        if (active && active !== '有効' && active !== 'TRUE' && active !== '1') continue;
+      }
+      var masterCodeStr = normalizeEmployeeCode_(String(wData[i][idCol]));
       if (masterCodeStr === code) {
         return { success: true, workerName: String(wData[i][nameCol]).trim() };
       }
@@ -74,6 +79,22 @@ function findMasterColumnIndex_(headers, aliases) {
     }
   }
   return -1;
+}
+
+function normalizeEmployeeCode_(raw) {
+  var code = normalizeServerCode(raw);
+  if (!code) return '';
+  if (code.indexOf('EMP') !== 0) code = 'EMP' + code;
+  return code;
+}
+
+function shouldSkipMasterSheetForProductScan_(sheetName) {
+  if (!sheetName) return true;
+  if (sheetName.indexOf('不良') !== -1 || sheetName.indexOf('ライン') !== -1) return true;
+  if (sheetName === EMPLOYEE_MASTER_SHEET_NAME || sheetName === WORKER_MASTER_LEGACY_SHEET) return true;
+  if (sheetName.indexOf('社員') !== -1 || sheetName.indexOf('作業者') !== -1) return true;
+  if (sheetName.indexOf('ポータル') !== -1 || sheetName.indexOf('ワークフロー') !== -1) return true;
+  return false;
 }
 
 /**
@@ -97,7 +118,7 @@ function processBarcodeScan(barcodeStr) {
     for (var s = 0; s < sheets.length; s++) {
       var sheet = sheets[s];
       var sheetName = sheet.getName();
-      if (sheetName.indexOf("不良") !== -1 || sheetName.indexOf("ライン") !== -1) continue;
+      if (shouldSkipMasterSheetForProductScan_(sheetName)) continue;
 
       var mData = sheet.getDataRange().getValues();
       if (mData.length < 2) continue;
@@ -140,6 +161,10 @@ function processBarcodeScan(barcodeStr) {
         }
       }
       if (found) break;
+    }
+
+    if (!found) {
+      return { success: false, msg: '品目CD「' + targetCodeStr + '」はマスタに登録されていません。' };
     }
 
     var startCaseNo = extractCaseNoFromLabel(barcodeStr);
@@ -221,5 +246,5 @@ function normalizeServerCode(raw) {
     var p = s.split('.');
     s = p[0].trim();
   }
-  return s;
+  return s.toUpperCase();
 }

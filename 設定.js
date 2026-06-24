@@ -27,6 +27,47 @@ var REPORT_SHEET_NAME = '日報集計';
 // マスタデータのスクリプトキャッシュ有効秒数（2回目以降の起動短縮）
 var MASTER_CACHE_TTL_SEC = 600;
 
+/** 作業マスタ「表示色」：日本語色名 → 16進カラー */
+var WORK_COLOR_NAME_TO_HEX = {
+  '赤': '#ef4444',
+  '朱色': '#e45c2a',
+  'オレンジ': '#f59e0b',
+  '黄色': '#eab308',
+  '黄緑': '#84cc16',
+  '青紫': '#6366f1',
+  '黒': '#334155',
+  '青緑': '#14b8a6',
+  '空色': '#38bdf8',
+  '青': '#3b82f6',
+  '紺色': '#1e3a8a',
+  '紫': '#8b5cf6',
+  '赤紫': '#c026d3',
+  'ピンク': '#ec4899',
+  '薄茶色': '#d4a574',
+  '茶色': '#78350f',
+  '灰色': '#94a3b8'
+};
+
+function getWorkColorNameMap_() {
+  return WORK_COLOR_NAME_TO_HEX;
+}
+
+/**
+ * 作業マスタ「表示色」を正規化（#hex / 日本語色名 / プリセット名）
+ */
+function normalizeWorkColorKey_(raw, fallbackName) {
+  var ck = String(raw != null && raw !== '' ? raw : fallbackName || '').trim();
+  ck = ck.replace(/[Ａ-Ｚａ-ｚ０-９]/g, function(ch) {
+    return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
+  });
+  ck = ck.replace(/\u3000/g, '').replace(/\s+/g, '');
+  if (/^#[0-9A-Fa-f]{3,8}$/.test(ck)) return ck.toLowerCase();
+  if (WORK_COLOR_NAME_TO_HEX[ck]) return WORK_COLOR_NAME_TO_HEX[ck];
+  var aliases = { '生産': '製造', 'メンテ': '修理', 'メンテナンス': '修理' };
+  if (aliases[ck]) ck = aliases[ck];
+  return ck;
+}
+
 /**
  * 1始まりの位置指定で部分文字列を切り出す
  */
@@ -86,7 +127,8 @@ function getBarcodeConfigForClient() {
     productCodeStart: PRODUCT_CODE_START,
     productCodeLength: PRODUCT_CODE_LENGTH,
     caseNoStart: CASE_NO_START,
-    caseNoLength: CASE_NO_LENGTH
+    caseNoLength: CASE_NO_LENGTH,
+    workColorNameMap: getWorkColorNameMap_()
   };
 }
 

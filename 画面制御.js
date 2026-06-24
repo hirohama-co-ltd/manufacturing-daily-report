@@ -18,7 +18,7 @@ function getCombinedInitialData(workDate) {
   var prodData = loadProductionDataForDate(dateKey);
   var lineList = loadLineMasterFromSheet();
   var workMasterList = loadWorkMasterFromSheet();
-  var checkMaster = loadCheckMasterFromSheet();
+  var checkMaster = loadCheckMasterFromSheet(dateKey);
   var lineCheckData = mergeCheckDataWithResults(checkMaster, dateKey);
 
   return {
@@ -31,7 +31,8 @@ function getCombinedInitialData(workDate) {
     barcodeConfig: getBarcodeConfigForClient(),
     checkSlotConstants: getCheckSlotConstants(),
     workMasterList: workMasterList,
-    isToday: dateKey === normalizeWorkDate(new Date())
+    isToday: dateKey === normalizeWorkDate(new Date()),
+    checkMasterGuideUrl: getCheckMasterGuideUrl_()
   };
 }
 

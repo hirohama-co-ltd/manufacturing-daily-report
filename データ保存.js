@@ -6,14 +6,20 @@ var CHECK_TYPE_LABELS = { daily: '日常点検', sensor: 'センサチェック'
  * スプレッドシートへの実績・タイムライン・点検の確定保存
  */
 function updateTimelineAndProducts(timelineData, productsData, currentJob, activeLineNo, lineCheckData, workDate) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var dateKey = normalizeWorkDate(workDate);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var dateKey = normalizeWorkDate(workDate);
 
-  saveTimelineForDate_(ss, dateKey, timelineData);
-  saveProductsForDate_(ss, dateKey, productsData, currentJob);
-  saveCheckResultsForDate_(ss, dateKey, lineCheckData);
+    saveTimelineForDate_(ss, dateKey, timelineData);
+    saveProductsForDate_(ss, dateKey, productsData, currentJob);
+    saveCheckResultsForDate_(ss, dateKey, lineCheckData);
 
-  return '✅ [ ' + dateKey + ' / ' + activeLineNo + ' ] の製造実績・タイムライン・点検結果を保存しました！';
+    return '✅ [ ' + dateKey + ' / ' + activeLineNo + ' ] の製造実績・タイムライン・点検結果を保存しました！';
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function saveTimelineForDate_(ss, workDate, timelineData) {
@@ -81,9 +87,7 @@ function generateDailyReportSheet(workDate, activeLineNo) {
 
   var prodRows = readProductRows_(ss.getSheetByName('製造実績')).filter(function(r) { return r.workDate === dateKey; });
   var tlRows = readTimelineRows_(ss.getSheetByName('タイムライン')).filter(function(r) { return r.workDate === dateKey; });
-  var checkRows = readCheckResultRows_(ss.getSheetByName('点検実績')).filter(function(r) {
-    return r.workDate === dateKey && (!activeLineNo || r.line === activeLineNo);
-  });
+  var checkRows = getMergedCheckResultRowsForReport_(dateKey, activeLineNo);
 
   var rows = [];
   rows.push(['製造日報 集計レポート']);
@@ -120,7 +124,6 @@ function generateDailyReportSheet(workDate, activeLineNo) {
     rows.push(['（データなし）']);
   } else {
     checkRows.forEach(function(c) {
-      if (c.type === '設定') return;
       rows.push([c.line, CHECK_TYPE_LABELS[c.type] || c.type, c.slot || '', c.text, c.judgeType, c.value, c.recordedAt || '']);
     });
   }
