@@ -3,6 +3,8 @@
 // ========================================
 
 var CHECK_RESULT_HEADERS = ['作業日', 'ライン', '種別', 'スロット', '項目', '判定種別', '結果', '記録時刻', '品種選択'];
+var CHECK_MASTER_DEFAULT_REVISION = '2000-01-01';
+var CHECK_MASTER_REV_HEADERS = ['改定日', 'アクション', '旧項目名'];
 var SENSOR_SLOTS_BASE = ['午前', '午後'];
 var REGULAR_SLOTS_ALL = ['始業', '10時', '13時', '15時', '17時', '終業'];
 var HIN_SWITCH_SLOT_PREFIX = '品切';
@@ -64,6 +66,60 @@ function masterRowAppliesToSlot_(applySlots, slot, hinSwitchCount) {
   return false;
 }
 
+function parseMasterRevisionDate_(cell) {
+  if (cell instanceof Date && !isNaN(cell.getTime())) {
+    return normalizeWorkDate(cell);
+  }
+  var s = String(cell != null ? cell : '').trim();
+  if (!s) return CHECK_MASTER_DEFAULT_REVISION;
+  return normalizeWorkDate(s);
+}
+
+function normalizeMasterAction_(raw) {
+  var a = String(raw || '').trim();
+  if (!a || a === '追加') return '追加';
+  if (a === '変更') return '変更';
+  if (a === '廃止' || a === '削除') return '廃止';
+  return '追加';
+}
+
+/** 作業日 D にこのマスタ行を表示するか */
+function isMasterRowActiveOnDate_(action, revisionDate, workDate) {
+  var rev = parseMasterRevisionDate_(revisionDate);
+  var d = normalizeWorkDate(workDate);
+  if (action === '廃止') return rev > d;
+  return rev <= d;
+}
+
+function parseMasterRevisionFields_(headers, row) {
+  var revCol = findMasterColumnIndex_(headers, ['改定日']);
+  if (revCol === -1) {
+    return {
+      revisionDate: CHECK_MASTER_DEFAULT_REVISION,
+      action: '追加',
+      prevName: ''
+    };
+  }
+  var actCol = findMasterColumnIndex_(headers, ['アクション']);
+  var prevCol = findMasterColumnIndex_(headers, ['旧項目名', '旧名称']);
+  return {
+    revisionDate: parseMasterRevisionDate_(row[revCol]),
+    action: normalizeMasterAction_(actCol >= 0 ? row[actCol] : ''),
+    prevName: prevCol >= 0 ? String(row[prevCol] || '').trim() : ''
+  };
+}
+
+function shouldIncludeMasterRow_(headers, row, workDate) {
+  var revCol = findMasterColumnIndex_(headers, ['改定日']);
+  if (revCol === -1) return true;
+  var fields = parseMasterRevisionFields_(headers, row);
+  return isMasterRowActiveOnDate_(fields.action, fields.revisionDate, workDate);
+}
+
+function getMasterRevisionFields_(headers, row) {
+  return parseMasterRevisionFields_(headers, row);
+}
+
 function createEmptyLineCheckBundle_() {
   var bundle = {
     daily: [],
@@ -111,12 +167,23 @@ function pushUniqueItem_(list, item) {
   list.push(item);
 }
 
-function newJudgeItem_(text, judgeType) {
-  return { text: text, judgeType: judgeType || '合否', value: (judgeType === '合否' ? '-' : ''), recordedAt: '' };
+function newJudgeItem_(text, judgeType, prevName) {
+  return {
+    text: text,
+    judgeType: judgeType || '合否',
+    value: (judgeType === '合否' ? '-' : ''),
+    recordedAt: '',
+    prevName: prevName || '',
+    legacy: false
+  };
 }
 
-function newSensorItem_(text) {
-  return { text: text, value: '-', recordedAt: '' };
+function newSensorItem_(text, prevName) {
+  return { text: text, value: '-', recordedAt: '', prevName: prevName || '', legacy: false };
+}
+
+function newDailyItem_(text, prevName) {
+  return { text: text, value: false, prevName: prevName || '', legacy: false };
 }
 
 /**
@@ -131,72 +198,79 @@ function readSheetDataRows_(sheet, numCols) {
 }
 
 /**
- * 各種点検マスタの読み込み（スロット展開）
+ * 各種点検マスタの読み込み（作業日時点で有効な行のみ、スロット展開）
  */
-function loadCheckMasterFromSheet() {
+function loadCheckMasterFromSheet(workDate) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var cacheKey = 'checkMaster_' + ss.getId();
-  var cached = getCachedJson_(cacheKey);
-  if (cached) return cached;
+  if (!ss) return {};
+  var dateKey = normalizeWorkDate(workDate || new Date());
 
   var result = {};
-  loadDailyMaster_(ss, result);
-  loadSensorMaster_(ss, result);
-  loadRegularMaster_(ss, result);
-  loadSwitchoverMaster_(ss, result);
+  loadDailyMaster_(ss, result, dateKey);
+  loadSensorMaster_(ss, result, dateKey);
+  loadRegularMaster_(ss, result, dateKey);
+  loadSwitchoverMaster_(ss, result, dateKey);
 
   Object.keys(result).forEach(function(line) {
     ensureHinSwitchSlots_(result[line]);
     ensureSwitchoverSlots_(result[line]);
   });
-  putCachedJson_(cacheKey, result);
   return result;
 }
 
-function loadDailyMaster_(ss, result) {
+function loadDailyMaster_(ss, result, workDate) {
   var sheet = ss.getSheetByName('日常点検マスタ');
   if (!sheet || sheet.getLastRow() < 2) return;
-  var rows = readSheetDataRows_(sheet, 2);
+  var lastCol = Math.max(sheet.getLastColumn(), 2);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0]
+    .map(function(h) { return String(h || '').trim(); });
+  var rows = readSheetDataRows_(sheet, lastCol);
   for (var i = 0; i < rows.length; i++) {
+    if (!shouldIncludeMasterRow_(headers, rows[i], workDate)) continue;
     var lineNo = String(rows[i][0]).trim();
     var itemText = String(rows[i][1]).trim();
     if (!lineNo || !itemText) continue;
+    var rev = getMasterRevisionFields_(headers, rows[i]);
     var bundle = ensureLineBundle_(result, lineNo);
-    bundle.daily.push({ text: itemText, value: false });
+    pushUniqueItem_(bundle.daily, newDailyItem_(itemText, rev.prevName));
   }
 }
 
-function loadSensorMaster_(ss, result) {
+function loadSensorMaster_(ss, result, workDate) {
   var sheet = ss.getSheetByName('センサチェックマスタ');
   if (!sheet || sheet.getLastRow() < 2) return;
   var lastCol = Math.max(sheet.getLastColumn(), 3);
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) { return String(h).trim(); });
-  var hasApplyCol = headers.indexOf('実施区分') >= 0 || lastCol >= 3;
-  var rows = readSheetDataRows_(sheet, hasApplyCol ? 3 : 2);
+  var applyCol = findMasterColumnIndex_(headers, ['実施区分']);
+  if (applyCol === -1) applyCol = 2;
+  var rows = readSheetDataRows_(sheet, lastCol);
 
   for (var i = 0; i < rows.length; i++) {
+    if (!shouldIncludeMasterRow_(headers, rows[i], workDate)) continue;
     var lineNo = String(rows[i][0]).trim();
     var itemText = String(rows[i][1]).trim();
     if (!lineNo || !itemText) continue;
-    var applySlots = hasApplyCol ? parseApplySlots_(rows[i][2]) : SENSOR_SLOTS_BASE.concat([HIN_SWITCH_SLOT_PREFIX]);
+    var applySlots = applyCol >= 0 ? parseApplySlots_(rows[i][applyCol]) : SENSOR_SLOTS_BASE.concat([HIN_SWITCH_SLOT_PREFIX]);
+    if (!applySlots.length) applySlots = SENSOR_SLOTS_BASE.concat([HIN_SWITCH_SLOT_PREFIX]);
+    var rev = getMasterRevisionFields_(headers, rows[i]);
     var bundle = ensureLineBundle_(result, lineNo);
     ensureHinSwitchSlots_(bundle);
 
     SENSOR_SLOTS_BASE.forEach(function(slot) {
       if (masterRowAppliesToSlot_(applySlots, slot, bundle.hinSwitchCount)) {
-        pushUniqueItem_(bundle.sensorBySlot[slot], newSensorItem_(itemText));
+        pushUniqueItem_(bundle.sensorBySlot[slot], newSensorItem_(itemText, rev.prevName));
       }
     });
     for (var h = 1; h <= bundle.hinSwitchCount; h++) {
       var hSlot = hinSwitchSlotName_(h);
       if (masterRowAppliesToSlot_(applySlots, hSlot, bundle.hinSwitchCount)) {
-        pushUniqueItem_(bundle.sensorBySlot[hSlot], newSensorItem_(itemText));
+        pushUniqueItem_(bundle.sensorBySlot[hSlot], newSensorItem_(itemText, rev.prevName));
       }
     }
   }
 }
 
-function loadSwitchoverMaster_(ss, result) {
+function loadSwitchoverMaster_(ss, result, workDate) {
   var sheet = ss.getSheetByName('切替点検マスタ');
   if (!sheet) {
     Logger.log('切替点検マスタ: シートがありません。スプレッドシートメニュー「切替点検マスタシートを作成」を実行してください。');
@@ -206,8 +280,12 @@ function loadSwitchoverMaster_(ss, result) {
     Logger.log('切替点検マスタ: データ行がありません（2行目以降にライン・項目を入力）');
     return;
   }
-  var rows = readSheetDataRows_(sheet, 2);
+  var lastCol = Math.max(sheet.getLastColumn(), 2);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0]
+    .map(function(h) { return String(h || '').trim(); });
+  var rows = readSheetDataRows_(sheet, lastCol);
   for (var i = 0; i < rows.length; i++) {
+    if (!shouldIncludeMasterRow_(headers, rows[i], workDate)) continue;
     var lineNo = String(rows[i][0]).trim();
     var itemText = String(rows[i][1]).trim();
     if (!lineNo || !itemText) continue;
@@ -218,25 +296,33 @@ function loadSwitchoverMaster_(ss, result) {
   }
 }
 
-function loadRegularMaster_(ss, result) {
+function loadRegularMaster_(ss, result, workDate) {
   var sheet = ss.getSheetByName('定時検査マスタ');
   if (!sheet || sheet.getLastRow() < 2) return;
   var lastCol = Math.max(sheet.getLastColumn(), 4);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0]
+    .map(function(h) { return String(h || '').trim(); });
+  var judgeCol = findMasterColumnIndex_(headers, ['判定種別']);
+  var applyCol = findMasterColumnIndex_(headers, ['実施区分']);
+  if (judgeCol === -1) judgeCol = 2;
+  if (applyCol === -1) applyCol = 3;
   var rows = readSheetDataRows_(sheet, lastCol);
 
   for (var i = 0; i < rows.length; i++) {
+    if (!shouldIncludeMasterRow_(headers, rows[i], workDate)) continue;
     var lineNo = String(rows[i][0]).trim();
     var itemText = String(rows[i][1]).trim();
     if (!lineNo || !itemText) continue;
-    var judgeType = rows[i][2] ? String(rows[i][2]).trim() : '合否';
-    var applySlots = parseApplySlots_(rows[i][3]);
+    var judgeType = judgeCol >= 0 && rows[i][judgeCol] ? String(rows[i][judgeCol]).trim() : '合否';
+    var applySlots = applyCol >= 0 ? parseApplySlots_(rows[i][applyCol]) : REGULAR_SLOTS_ALL.slice();
     if (applySlots.length === 0) applySlots = REGULAR_SLOTS_ALL.slice();
+    var rev = getMasterRevisionFields_(headers, rows[i]);
 
     var bundle = ensureLineBundle_(result, lineNo);
     applySlots.forEach(function(slot) {
       if (REGULAR_SLOTS_ALL.indexOf(slot) === -1) return;
       if (!bundle.regularBySlot[slot]) bundle.regularBySlot[slot] = [];
-      pushUniqueItem_(bundle.regularBySlot[slot], newJudgeItem_(itemText, judgeType));
+      pushUniqueItem_(bundle.regularBySlot[slot], newJudgeItem_(itemText, judgeType, rev.prevName));
     });
   }
 }
@@ -251,12 +337,23 @@ function cloneCheckMasterBundle_(bundle) {
   cloned.varietySelection = bundle.varietySelection || '未選択';
 
   cloned.daily = (bundle.daily || []).map(function(item) {
-    return { text: item.text, value: !!item.value };
+    return {
+      text: item.text,
+      value: !!item.value,
+      prevName: item.prevName || '',
+      legacy: !!item.legacy
+    };
   });
 
   Object.keys(bundle.sensorBySlot || {}).forEach(function(slot) {
     cloned.sensorBySlot[slot] = (bundle.sensorBySlot[slot] || []).map(function(item) {
-      return { text: item.text, value: item.value || '-', recordedAt: item.recordedAt || '' };
+      return {
+        text: item.text,
+        value: item.value || '-',
+        recordedAt: item.recordedAt || '',
+        prevName: item.prevName || '',
+        legacy: !!item.legacy
+      };
     });
   });
   ensureHinSwitchSlots_(cloned);
@@ -269,7 +366,9 @@ function cloneCheckMasterBundle_(bundle) {
         value: item.value !== undefined && item.value !== null && item.value !== ''
           ? item.value
           : ((item.judgeType === '合否') ? '-' : ''),
-        recordedAt: item.recordedAt || ''
+        recordedAt: item.recordedAt || '',
+        prevName: item.prevName || '',
+        legacy: !!item.legacy
       };
     });
   });
@@ -280,7 +379,13 @@ function cloneCheckMasterBundle_(bundle) {
 
   Object.keys(bundle.switchoverBySlot || {}).forEach(function(slot) {
     cloned.switchoverBySlot[slot] = (bundle.switchoverBySlot[slot] || []).map(function(item) {
-      return { text: item.text, value: item.value || '-', recordedAt: item.recordedAt || '' };
+      return {
+        text: item.text,
+        value: item.value || '-',
+        recordedAt: item.recordedAt || '',
+        prevName: item.prevName || '',
+        legacy: !!item.legacy
+      };
     });
   });
   ensureSwitchoverSlots_(cloned);
@@ -359,28 +464,54 @@ function mergeCheckDataWithResults(masterData, workDate) {
 
 function applyDailyValue_(list, text, value) {
   for (var i = 0; i < list.length; i++) {
-    if (list[i].text === text) { list[i].value = value; return; }
+    if (list[i].text === text) {
+      list[i].value = value;
+      return true;
+    }
+    if (list[i].prevName && list[i].prevName === text) {
+      list[i].value = value;
+      return true;
+    }
   }
+  list.push({ text: text, value: value, prevName: '', legacy: true });
+  return true;
 }
 
 function applySensorValue_(list, text, value, recordedAt) {
   for (var i = 0; i < list.length; i++) {
-    if (list[i].text === text) {
+    if (list[i].text === text || (list[i].prevName && list[i].prevName === text)) {
       list[i].value = value;
       if (recordedAt) list[i].recordedAt = recordedAt;
-      return;
+      return true;
     }
   }
+  list.push({
+    text: text,
+    value: value,
+    recordedAt: recordedAt || '',
+    prevName: '',
+    legacy: true
+  });
+  return true;
 }
 
 function applyRegularValue_(list, text, judgeType, value, recordedAt) {
   for (var i = 0; i < list.length; i++) {
-    if (list[i].text === text) {
+    if (list[i].text === text || (list[i].prevName && list[i].prevName === text)) {
       list[i].value = value;
       if (recordedAt) list[i].recordedAt = recordedAt;
-      return;
+      return true;
     }
   }
+  list.push({
+    text: text,
+    judgeType: judgeType || '合否',
+    value: value,
+    recordedAt: recordedAt || '',
+    prevName: '',
+    legacy: true
+  });
+  return true;
 }
 
 /**
@@ -554,4 +685,110 @@ function buildMatrixRowsFromSlots_(bySlot, slots, includeJudgeType) {
     });
   });
   return Object.keys(itemMap).map(function(k) { return itemMap[k]; });
+}
+
+/**
+ * レポート出力用：作業日時点のマスタ＋実績マージ結果を平坦化
+ */
+function getMergedCheckResultRowsForReport_(workDate, activeLineNo) {
+  var dateKey = normalizeWorkDate(workDate);
+  var checkMaster = loadCheckMasterFromSheet(dateKey);
+  var merged = mergeCheckDataWithResults(checkMaster, dateKey);
+  var rows = [];
+
+  Object.keys(merged).forEach(function(lineName) {
+    if (activeLineNo && lineName !== activeLineNo) return;
+    var bundle = merged[lineName];
+    if (!bundle) return;
+
+    (bundle.daily || []).forEach(function(item) {
+      rows.push({
+        line: lineName,
+        type: 'daily',
+        slot: '当日',
+        text: item.text,
+        judgeType: '-',
+        value: item.value ? '済' : '未',
+        recordedAt: ''
+      });
+    });
+
+    Object.keys(bundle.sensorBySlot || {}).forEach(function(slot) {
+      (bundle.sensorBySlot[slot] || []).forEach(function(item) {
+        rows.push({
+          line: lineName,
+          type: 'sensor',
+          slot: slot,
+          text: item.text,
+          judgeType: '-',
+          value: String(item.value || '-'),
+          recordedAt: item.recordedAt || ''
+        });
+      });
+    });
+
+    Object.keys(bundle.regularBySlot || {}).forEach(function(slot) {
+      (bundle.regularBySlot[slot] || []).forEach(function(item) {
+        rows.push({
+          line: lineName,
+          type: 'regular',
+          slot: slot,
+          text: item.text,
+          judgeType: item.judgeType || '合否',
+          value: String(item.value !== undefined && item.value !== null ? item.value : '-'),
+          recordedAt: item.recordedAt || ''
+        });
+      });
+    });
+
+    Object.keys(bundle.switchoverBySlot || {}).forEach(function(slot) {
+      (bundle.switchoverBySlot[slot] || []).forEach(function(item) {
+        rows.push({
+          line: lineName,
+          type: 'switchover',
+          slot: slot,
+          text: item.text,
+          judgeType: '-',
+          value: String(item.value || '-'),
+          recordedAt: item.recordedAt || ''
+        });
+      });
+    });
+  });
+
+  return rows;
+}
+
+/**
+ * 点検マスタ改定日・アクションの入力チェック（メニュー用）
+ */
+function validateCheckMasterRevisions_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetNames = ['日常点検マスタ', 'センサチェックマスタ', '定時検査マスタ', '切替点検マスタ'];
+  var warnings = [];
+
+  sheetNames.forEach(function(name) {
+    var sheet = ss.getSheetByName(name);
+    if (!sheet || sheet.getLastRow() < 2) return;
+    var lastCol = sheet.getLastColumn();
+    var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0]
+      .map(function(h) { return String(h || '').trim(); });
+    if (findMasterColumnIndex_(headers, ['改定日']) === -1) {
+      warnings.push(name + ': 「改定日」列がありません（既存行は全期間有効として扱われます）');
+      return;
+    }
+    var actCol = findMasterColumnIndex_(headers, ['アクション']);
+    var prevCol = findMasterColumnIndex_(headers, ['旧項目名', '旧名称']);
+    var rows = readSheetDataRows_(sheet, lastCol);
+    for (var i = 0; i < rows.length; i++) {
+      var rowNum = i + 2;
+      var action = normalizeMasterAction_(actCol >= 0 ? rows[i][actCol] : '');
+      var prevName = prevCol >= 0 ? String(rows[i][prevCol] || '').trim() : '';
+      if (action === '変更' && !prevName) {
+        warnings.push(name + ' 行' + rowNum + ': アクション「変更」ですが旧項目名が空です');
+      }
+    }
+  });
+
+  return warnings;
 }

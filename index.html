@@ -46,6 +46,8 @@
     .variety-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; flex-wrap: wrap; }
     .variety-select { flex: 1; min-width: 160px; padding: 6px; font-weight: bold; border-radius: 4px; border: 2px solid #cbd5e1; }
     .check-hint { font-size: 11px; color: #64748b; margin-bottom: 6px; }
+    .check-hint a { color: #2563eb; text-decoration: underline; }
+    .check-hint a:hover { color: #1d4ed8; }
 
     .matrix-wrap { overflow-x: auto; width: 100%; }
     .matrix-table { border-collapse: collapse; font-size: 11px; width: 100%; min-width: 480px; }
@@ -215,6 +217,7 @@
   <div id="containerDailyCheck" class="app-container">
     <div class="check-section">
       <div class="check-title" id="dailyCheckLineTitle">日常点検項目</div>
+      <p class="check-hint">項目の追加・廃止・改名はスプレッドシートの点検マスタで行います（<a class="check-master-guide-link" href="#" target="_blank" rel="noopener">運用説明</a>）。作業日により表示が変わり、マスタ外の保存済み項目には「旧」が付きます。</p>
       <div id="dailyCheckListArea"></div>
     </div>
   </div>
@@ -227,6 +230,7 @@
         <select id="varietySelect" class="variety-select" onchange="onVarietySelectionChanged()"></select>
       </div>
       <p class="check-hint">午前・午後・品切替ごとに実施。実施時刻は厳密でなく、記録は参考用です。</p>
+      <p class="check-hint">項目の追加・廃止・改名はスプレッドシートの点検マスタで行います（<a class="check-master-guide-link" href="#" target="_blank" rel="noopener">運用説明</a>）。作業日により表示が変わり、マスタ外の保存済み項目には「旧」が付きます。</p>
       <div class="slot-bar" id="sensorSlotBar"></div>
       <div id="sensorCheckListArea"></div>
     </div>
@@ -236,6 +240,7 @@
     <div class="check-section">
       <div class="check-title" id="switchoverCheckLineTitle">切替点検項目</div>
       <p class="check-hint">品種切替のたびに実施。新しい製品ラベル読込時に案内されます。</p>
+      <p class="check-hint">項目の追加・廃止・改名はスプレッドシートの点検マスタで行います（<a class="check-master-guide-link" href="#" target="_blank" rel="noopener">運用説明</a>）。作業日により表示が変わり、マスタ外の保存済み項目には「旧」が付きます。</p>
       <div class="slot-bar" id="switchoverSlotBar"></div>
       <div id="switchoverCheckListArea"></div>
     </div>
@@ -249,6 +254,7 @@
         <select id="varietySelectRegular" class="variety-select" onchange="onVarietySelectionChanged()"></select>
       </div>
       <p class="check-hint">始業・10時・13時等の枠で記録（実際の実施時刻はずれても可）。</p>
+      <p class="check-hint">項目の追加・廃止・改名はスプレッドシートの点検マスタで行います（<a class="check-master-guide-link" href="#" target="_blank" rel="noopener">運用説明</a>）。作業日により表示が変わり、マスタ外の保存済み項目には「旧」が付きます。</p>
       <div class="slot-bar" id="regularSlotBar"></div>
       <div id="regularCheckListArea"></div>
     </div>
@@ -499,6 +505,19 @@
     </div>
   </div>
 
+  <div id="draftRestoreModal" class="modal-overlay">
+    <div class="modal-content" style="border: 3px solid #2563eb; max-width: 400px;">
+      <div class="modal-title" style="color: #1e3a8a;">📋 下書きの復元</div>
+      <p class="modal-warn-body" style="text-align:left;">この作業日・ラインに、ブラウザに保存された下書きがあります。</p>
+      <p class="modal-warn-body" style="text-align:left; font-size:12px; color:#64748b; margin:0;" id="draftRestoreWhen"></p>
+      <div class="modal-btns" style="flex-direction:column; align-items:stretch;">
+        <button type="button" class="btn-modal-confirm" style="background:#2563eb; width:100%;" onclick="confirmDraftRestore_()">下書きを復元</button>
+        <button type="button" class="btn-modal-cancel" style="background:#ef4444; color:#fff; border:none; width:100%;" onclick="deleteDraftRestore_()">下書きを削除</button>
+        <button type="button" class="btn-modal-cancel" style="width:100%; font-size:12px;" onclick="dismissDraftRestoreModal_()">キャンセル（サーバーの内容を使用）</button>
+      </div>
+    </div>
+  </div>
+
 
   <script>
     // 状態管理
@@ -520,6 +539,12 @@
     let activeSwitchoverSlot = '切替1';
     let switchoverModalEditSlot = null;
     let workMasterList = [];
+    let workColorNameMap = {
+      '赤': '#ef4444', '朱色': '#e45c2a', 'オレンジ': '#f59e0b', '黄色': '#eab308',
+      '黄緑': '#84cc16', '青紫': '#6366f1', '黒': '#334155', '青緑': '#14b8a6',
+      '空色': '#38bdf8', '青': '#3b82f6', '紺色': '#1e3a8a', '紫': '#8b5cf6',
+      '赤紫': '#c026d3', 'ピンク': '#ec4899', '薄茶色': '#d4a574', '茶色': '#78350f', '灰色': '#94a3b8'
+    };
     let pendingWorkSwitch = null;
     let activeSensorSlot = '午前';
     let activeRegularSlot = '始業';
@@ -538,6 +563,7 @@
     let isApplyingDraft = false;
     let draftBackupTimer = null;
     let periodicDraftTimerId = null;
+    let pendingDraftRestore = null;
 
     const REGULAR_TIMED_ALERTS = [
       { slot: '10時', triggerMin: 10 * 60 + 20, label: '10時20分' },
@@ -587,7 +613,6 @@
         localStorage.setItem(INIT_CACHE_KEY, JSON.stringify({
           ts: Date.now(),
           lineList: res.lineList || [],
-          workMasterList: res.workMasterList || [],
           barcodeConfig: res.barcodeConfig || null,
           checkSlotConstants: res.checkSlotConstants || null
         }));
@@ -601,9 +626,11 @@
         const c = JSON.parse(raw);
         if (!c.ts || Date.now() - c.ts > INIT_CACHE_MAX_AGE_MS) return false;
 
-        if (c.barcodeConfig) barcodeConfig = c.barcodeConfig;
+        if (c.barcodeConfig) {
+          barcodeConfig = c.barcodeConfig;
+          if (c.barcodeConfig.workColorNameMap) workColorNameMap = c.barcodeConfig.workColorNameMap;
+        }
         if (c.checkSlotConstants) checkSlotConstants = c.checkSlotConstants;
-        if (c.workMasterList) workMasterList = c.workMasterList;
 
         if (c.lineList && c.lineList.length > 0) {
           const selectBox = document.getElementById('lineNoSelect');
@@ -728,6 +755,44 @@
       refreshVarietySelectOptions();
     }
 
+    function openDraftRestoreModal_(workDate, lineNo, draft) {
+      pendingDraftRestore = { workDate: workDate, lineNo: lineNo, draft: draft };
+      const whenEl = document.getElementById('draftRestoreWhen');
+      const when = draft.savedAt ? new Date(draft.savedAt).toLocaleString('ja-JP') : '不明';
+      if (whenEl) whenEl.textContent = '保存日時: ' + when;
+      suspendAutoFocus(120);
+      activeModalState = 'draft_restore';
+      document.getElementById('draftRestoreModal').style.display = 'flex';
+    }
+
+    function closeDraftRestoreModal_() {
+      document.getElementById('draftRestoreModal').style.display = 'none';
+      if (activeModalState === 'draft_restore') activeModalState = 'none';
+      pendingDraftRestore = null;
+      focusBarcodeScan(true);
+    }
+
+    function confirmDraftRestore_() {
+      if (!pendingDraftRestore || !pendingDraftRestore.draft) {
+        closeDraftRestoreModal_();
+        return;
+      }
+      const draft = pendingDraftRestore.draft;
+      closeDraftRestoreModal_();
+      applyDraftSnapshot_(draft);
+    }
+
+    function deleteDraftRestore_() {
+      if (pendingDraftRestore) {
+        clearDraftFromLocal_(pendingDraftRestore.workDate, pendingDraftRestore.lineNo);
+      }
+      closeDraftRestoreModal_();
+    }
+
+    function dismissDraftRestoreModal_() {
+      closeDraftRestoreModal_();
+    }
+
     function tryOfferDraftRestore_(workDate, lineNo) {
       if (!workDate || !lineNo) return;
       let raw;
@@ -742,11 +807,7 @@
         clearDraftFromLocal_(workDate, lineNo);
         return;
       }
-      const when = draft.savedAt ? new Date(draft.savedAt).toLocaleString('ja-JP') : '不明';
-      if (!confirm('この作業日・ラインに、ブラウザに保存された下書きがあります（' + when + '）。\n復元しますか？\n\n「キャンセル」でサーバーから読み込んだ内容を使います。')) {
-        return;
-      }
-      applyDraftSnapshot_(draft);
+      openDraftRestoreModal_(workDate, lineNo, draft);
     }
 
     function onWorkDateChanged() {
@@ -1283,6 +1344,7 @@
     }
 
     function cycleSwitchoverCheck(lineKey, slot, idx) {
+      if (isCheckEditingLocked_()) return;
       const item = lineCheckData[lineKey].switchoverBySlot[slot][idx];
       item.value = toggleJudgeValue(item.value);
       stampRecordedAt(item);
@@ -1299,7 +1361,9 @@
       const newSlot = (checkSlotConstants.hinSwitchPrefix || '品切') + bundle.hinSwitchCount;
       if (!bundle.sensorBySlot[newSlot]) {
         const template = bundle.sensorBySlot[(checkSlotConstants.hinSwitchPrefix || '品切') + '1'] || [];
-        bundle.sensorBySlot[newSlot] = template.map(it => ({ text: it.text, value: '-', recordedAt: '' }));
+        bundle.sensorBySlot[newSlot] = template.map(it => ({
+          text: it.text, value: '-', recordedAt: '', prevName: it.prevName || '', legacy: !!it.legacy
+        }));
       }
       activeSensorSlot = newSlot;
       renderCheckLists(line);
@@ -1322,14 +1386,31 @@
       if (currentTab === 'matrix') renderMatrixView();
     }
 
+    function isCheckEditingLocked_() {
+      return !isViewingToday;
+    }
+
+    function applyCheckMasterGuideLinks_(url) {
+      if (!url) return;
+      document.querySelectorAll('.check-master-guide-link').forEach(function(link) {
+        link.href = url;
+      });
+    }
+
+    function checkItemLegacyBadgeHtml_(item) {
+      if (!item || !item.legacy) return '';
+      return '<span style="font-size:10px;color:#92400e;background:#fef3c7;padding:1px 4px;border-radius:3px;margin-left:4px;">旧</span>';
+    }
+
     function renderCheckLists(lineKey) {
       const bundle = ensureLineBundle(lineKey);
 
+      const checkLocked = isCheckEditingLocked_();
       const dailyArea = document.getElementById("dailyCheckListArea");
       dailyArea.innerHTML = (bundle.daily || []).map((item, i) => `
         <div class="check-item-row">
-          <div class="check-item-text">◽️ ${escapeHtml(item.text)}</div>
-          <input type="checkbox" class="check-checkbox" ${item.value ? 'checked' : ''} onchange="toggleDailyCheck('${escapeHtml(lineKey)}', ${i}, this.checked)">
+          <div class="check-item-text">◽️ ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}</div>
+          <input type="checkbox" class="check-checkbox" ${item.value ? 'checked' : ''} ${checkLocked ? 'disabled' : ''} onchange="toggleDailyCheck('${escapeHtml(lineKey)}', ${i}, this.checked)">
         </div>
       `).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">項目が設定されていません。</div>';
 
@@ -1344,10 +1425,11 @@
       const sensorItems = bundle.sensorBySlot[activeSensorSlot] || [];
       document.getElementById("sensorCheckListArea").innerHTML = sensorItems.map((item, i) => {
         const v = item.value || '-';
+        const btnAttrs = checkLocked ? 'disabled style="opacity:0.6;cursor:not-allowed;"' : `onclick="cycleSensorCheck('${escapeHtml(lineKey)}', '${escapeHtml(activeSensorSlot)}', ${i})"`;
         return `
           <div class="check-item-row">
-            <div class="check-item-text">⚡ ${escapeHtml(item.text)}${item.recordedAt ? `<br><span style="font-size:10px;color:#64748b;">記録 ${escapeHtml(item.recordedAt)}</span>` : ''}</div>
-            <button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" onclick="cycleSensorCheck('${escapeHtml(lineKey)}', '${escapeHtml(activeSensorSlot)}', ${i})">${judgeDisplayLabel(v)}</button>
+            <div class="check-item-text">⚡ ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}${item.recordedAt ? `<br><span style="font-size:10px;color:#64748b;">記録 ${escapeHtml(item.recordedAt)}</span>` : ''}</div>
+            <button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" ${btnAttrs}>${judgeDisplayLabel(v)}</button>
           </div>`;
       }).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">この回の項目がありません。</div>';
 
@@ -1373,10 +1455,11 @@
         } else {
           swArea.innerHTML = swItems.map((item, i) => {
             const v = item.value || '-';
+            const btnAttrs = checkLocked ? 'disabled style="opacity:0.6;cursor:not-allowed;"' : `onclick="cycleSwitchoverCheck('${escapeHtml(lineKey)}', '${escapeHtml(activeSwitchoverSlot)}', ${i})"`;
             return `
               <div class="check-item-row">
-                <div class="check-item-text">🔄 ${escapeHtml(item.text)}${item.recordedAt ? `<br><span style="font-size:10px;color:#64748b;">記録 ${escapeHtml(item.recordedAt)}</span>` : ''}</div>
-                <button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" onclick="cycleSwitchoverCheck('${escapeHtml(lineKey)}', '${escapeHtml(activeSwitchoverSlot)}', ${i})">${judgeDisplayLabel(v)}</button>
+                <div class="check-item-text">🔄 ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}${item.recordedAt ? `<br><span style="font-size:10px;color:#64748b;">記録 ${escapeHtml(item.recordedAt)}</span>` : ''}</div>
+                <button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" ${btnAttrs}>${judgeDisplayLabel(v)}</button>
               </div>`;
           }).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">この回の項目がありません。</div>';
         }
@@ -1390,17 +1473,20 @@
         let inputPart = "";
         if (item.judgeType === "合否") {
           const v = item.value || '-';
-          inputPart = `<button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" onclick="cycleRegularCheck('${escapeHtml(lineKey)}', '${escapeHtml(activeRegularSlot)}', ${i})">${judgeDisplayLabel(v)}</button>`;
+          const btnAttrs = checkLocked ? 'disabled style="opacity:0.6;cursor:not-allowed;"' : `onclick="cycleRegularCheck('${escapeHtml(lineKey)}', '${escapeHtml(activeRegularSlot)}', ${i})"`;
+          inputPart = `<button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" ${btnAttrs}>${judgeDisplayLabel(v)}</button>`;
         } else {
           const hasValue = item.value !== "";
           const btnText = hasValue ? `${item.value} ${item.judgeType}` : "数値入力";
-          inputPart = `<button type="button" class="btn-value-input ${hasValue ? 'filled' : ''}" onclick="openRegularValueModal('${escapeHtml(activeRegularSlot)}', ${i})">${escapeHtml(btnText)}</button>`;
+          const btnAttrs = checkLocked ? 'disabled style="opacity:0.6;cursor:not-allowed;"' : `onclick="openRegularValueModal('${escapeHtml(activeRegularSlot)}', ${i})"`;
+          inputPart = `<button type="button" class="btn-value-input ${hasValue ? 'filled' : ''}" ${btnAttrs}>${escapeHtml(btnText)}</button>`;
         }
-        return `<div class="check-item-row"><div class="check-item-text">⏱️ ${escapeHtml(item.text)}</div><div>${inputPart}</div></div>`;
+        return `<div class="check-item-row"><div class="check-item-text">⏱️ ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}</div><div>${inputPart}</div></div>`;
       }).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">この回の項目がありません。</div>';
     }
 
     function toggleDailyCheck(lineKey, idx, isChecked) {
+      if (isCheckEditingLocked_()) return;
       const item = lineCheckData[lineKey].daily[idx];
       item.value = isChecked;
       if (isChecked) item.recordedAt = nowTimeStr();
@@ -1408,6 +1494,7 @@
     }
 
     function cycleSensorCheck(lineKey, slot, idx) {
+      if (isCheckEditingLocked_()) return;
       const item = lineCheckData[lineKey].sensorBySlot[slot][idx];
       item.value = toggleJudgeValue(item.value);
       stampRecordedAt(item);
@@ -1423,6 +1510,7 @@
     }
 
     function cycleRegularCheck(lineKey, slot, idx) {
+      if (isCheckEditingLocked_()) return;
       const item = lineCheckData[lineKey].regularBySlot[slot][idx];
       item.value = toggleJudgeValue(item.value);
       stampRecordedAt(item);
@@ -1432,6 +1520,7 @@
     }
 
     function openRegularValueModal(slot, idx) {
+      if (isCheckEditingLocked_()) return;
       suspendAutoFocus(10);
       activeModalState = "regular_val";
       currentRegEditIndex = { slot: slot, idx: idx };
@@ -1609,7 +1698,7 @@
     function focusBarcodeScan(force) {
       if (currentTab !== 'production') return;
       if (!isAutoFocusEnabled || scanInFlight) return;
-      if (activeModalState === "defect_qty" || activeModalState === "defect_scan" || activeModalState === "regular_val" || activeModalState === "regular_alert" || activeModalState === "regular_save_warn" || activeModalState === "work_switch" || activeModalState === "switchover_prompt" || activeModalState === "switchover_check") return;
+      if (activeModalState === "defect_qty" || activeModalState === "defect_scan" || activeModalState === "regular_val" || activeModalState === "regular_alert" || activeModalState === "regular_save_warn" || activeModalState === "work_switch" || activeModalState === "switchover_prompt" || activeModalState === "switchover_check" || activeModalState === "draft_restore") return;
       const input = document.getElementById("barcodeHiddenInput");
       if (!input) return;
       const activeEl = document.activeElement;
@@ -1677,7 +1766,7 @@
       loadInitialData();
       
       document.body.addEventListener("click", function(e) {
-        if (activeModalState === "defect_qty" || activeModalState === "defect_scan" || activeModalState === "regular_val" || activeModalState === "regular_alert" || activeModalState === "regular_save_warn" || activeModalState === "work_switch" || activeModalState === "switchover_prompt" || activeModalState === "switchover_check" || currentTab !== 'production') return;
+        if (activeModalState === "defect_qty" || activeModalState === "defect_scan" || activeModalState === "regular_val" || activeModalState === "regular_alert" || activeModalState === "regular_save_warn" || activeModalState === "work_switch" || activeModalState === "switchover_prompt" || activeModalState === "switchover_check" || activeModalState === "draft_restore" || currentTab !== 'production') return;
         if (e.target && e.target.id !== "barcodeHiddenInput" && e.target.id !== "modalDefectCodeInput") {
           if (e.target.tagName === "SELECT" || e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") {
             suspendAutoFocus(5);
@@ -1717,17 +1806,76 @@
       }, 90000);
     };
 
-    function getTimelineBarColorClass(status) {
-      const s = String(status || '');
-      const hit = (workMasterList || []).find(w => w.name === s);
-      if (hit && hit.colorKey) {
-        const ck = String(hit.colorKey);
-        if (['製造', '修理', '調整', '未選択'].indexOf(ck) >= 0) return 'bg-' + ck;
+    function normalizeWorkColorKeyClient(raw) {
+      let ck = String(raw != null && raw !== '' ? raw : '').trim();
+      ck = ck.replace(/[Ａ-Ｚａ-ｚ０-９]/g, function(ch) {
+        return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
+      });
+      ck = ck.replace(/\u3000/g, '').replace(/\s+/g, '');
+      if (/^#[0-9A-Fa-f]{3,8}$/.test(ck)) return ck.toLowerCase();
+      if (workColorNameMap[ck]) return workColorNameMap[ck];
+      const aliases = { '生産': '製造', 'メンテ': '修理', 'メンテナンス': '修理' };
+      if (aliases[ck]) ck = aliases[ck];
+      return ck;
+    }
+
+    const TIMELINE_PRESET_COLORS = {
+      '製造': '#10b981',
+      '修理': '#ef4444',
+      '調整': '#f59e0b',
+      '未選択': '#94a3b8'
+    };
+
+    function resolveTimelineColor_(status) {
+      const s = String(status || '').trim();
+      const hit = (workMasterList || []).find(function(w) {
+        return String(w.name || '').trim() === s;
+      });
+      let ck = '';
+      if (hit) ck = normalizeWorkColorKeyClient(hit.colorKey || hit.name);
+      if (ck && TIMELINE_PRESET_COLORS[ck]) {
+        return { className: 'bg-' + ck, color: TIMELINE_PRESET_COLORS[ck] };
       }
-      if (s.indexOf('完了:') === 0 || s.indexOf('製造') !== -1) return 'bg-製造';
-      if (s === '修理') return 'bg-修理';
-      if (s === '調整') return 'bg-調整';
-      return 'bg-未選択';
+      if (/^#[0-9a-f]{3,8}$/.test(ck)) {
+        return { className: '', color: ck };
+      }
+      if (s.indexOf('完了:') === 0 || s.indexOf('製造') !== -1) {
+        return { className: 'bg-製造', color: TIMELINE_PRESET_COLORS['製造'] };
+      }
+      if (s === '修理') return { className: 'bg-修理', color: TIMELINE_PRESET_COLORS['修理'] };
+      if (s === '調整') return { className: 'bg-調整', color: TIMELINE_PRESET_COLORS['調整'] };
+      return { className: 'bg-未選択', color: TIMELINE_PRESET_COLORS['未選択'] };
+    }
+
+    function getTimelineBarColorClass(status) {
+      return resolveTimelineColor_(status).className || 'bg-未選択';
+    }
+
+    function getTimelineSelectClass(status) {
+      const resolved = resolveTimelineColor_(status);
+      if (resolved.className === 'bg-製造') return 'active-prod';
+      if (resolved.className === 'bg-修理') return 'active-repair';
+      if (resolved.className === 'bg-調整') return 'active-adjust';
+      if (!resolved.className && resolved.color) return 'active-custom';
+      return 'select-未選択';
+    }
+
+    function getTimelineSelectStyle(status) {
+      const resolved = resolveTimelineColor_(status);
+      if (!resolved.className && resolved.color) {
+        return 'background-color:' + resolved.color + ';color:#fff;border-color:' + resolved.color + ';';
+      }
+      return '';
+    }
+
+    function applyTimelineBlockColor_(el, status) {
+      const resolved = resolveTimelineColor_(status);
+      el.className = 'stacked-block' + (resolved.className ? (' ' + resolved.className) : '');
+      if (!resolved.className && resolved.color) {
+        el.style.backgroundColor = resolved.color;
+      } else {
+        el.style.backgroundColor = '';
+      }
     }
 
     /** 作業QR切替の「前作業」対象（末尾の未選択は除く） */
@@ -1812,14 +1960,6 @@
         return true;
       }
       return false;
-    }
-
-    function getTimelineSelectClass(status) {
-      const bar = getTimelineBarColorClass(status);
-      if (bar === 'bg-製造') return 'active-prod';
-      if (bar === 'bg-修理') return 'active-repair';
-      if (bar === 'bg-調整') return 'active-adjust';
-      return 'select-未選択';
     }
 
     function buildTimelineStatusOptionsHtml(currentStatus) {
@@ -2333,7 +2473,10 @@
           }
           selectedWorkDate = res.workDate || reqDate;
           isViewingToday = res.isToday !== false;
-          if (res.barcodeConfig) barcodeConfig = res.barcodeConfig;
+          if (res.barcodeConfig) {
+            barcodeConfig = res.barcodeConfig;
+            if (res.barcodeConfig.workColorNameMap) workColorNameMap = res.barcodeConfig.workColorNameMap;
+          }
           if (res.checkSlotConstants) checkSlotConstants = res.checkSlotConstants;
           if (res.workMasterList) workMasterList = res.workMasterList;
 
@@ -2349,6 +2492,7 @@
           timelineBlocks = normalizeTimelineBlocksClient(timelineBlocks);
           currentActiveJob = res.currentJob || null;
           lineCheckData = res.lineCheckData || {};
+          applyCheckMasterGuideLinks_(res.checkMasterGuideUrl);
 
           if (res.lineList && res.lineList.length > 0) {
             const selectBox = document.getElementById("lineNoSelect");
@@ -2477,7 +2621,7 @@
         const widthPercent = ((bEnd - bStart) / TOTAL_DURATION) * 100;
         if (widthPercent > 0) {
           const visualBlock = document.createElement('div');
-          visualBlock.className = `stacked-block ${getTimelineBarColorClass(block.status)}`;
+          applyTimelineBlockColor_(visualBlock, block.status);
           visualBlock.style.left = `${leftPercent}%`; visualBlock.style.width = `${widthPercent}%`;
           if (widthPercent > 5) { visualBlock.innerText = block.status; }
           barTrack.appendChild(visualBlock);
@@ -2490,12 +2634,13 @@
         const currentTarget = selectedTargetMap[index];
         const editRow = document.createElement('div'); editRow.className = 'edit-row';
         const selectClass = getTimelineSelectClass(block.status);
+        const selectStyle = getTimelineSelectStyle(block.status);
         const optionsHtml = buildTimelineStatusOptionsHtml(block.status);
 
         editRow.innerHTML = `
           <div class="edit-row-top">
             <div class="col-no">No.${index + 1}</div>
-            <div class="col-select"><select class="status-select ${selectClass}" onchange="changeStatus(${index}, this.value)">${optionsHtml}</select></div>
+            <div class="col-select"><select class="status-select ${selectClass}" style="${selectStyle}" onchange="changeStatus(${index}, this.value)">${optionsHtml}</select></div>
             <div class="col-time-container">
               <span class="time-clickable ${currentTarget === 'start' ? 'selected' : ''}" onclick="event.stopPropagation(); setTimeTarget(${index}, 'start')">${block.startTime}</span><span>～</span>
               <span class="time-clickable ${currentTarget === 'end' ? 'selected' : ''}" onclick="event.stopPropagation(); setTimeTarget(${index}, 'end')">${block.endTime}</span>
@@ -2684,6 +2829,12 @@
         const unfinished = collectUnfinishedRegularForSave_(activeLineNo);
         if (unfinished.length > 0) {
           openRegularSaveWarnModal(unfinished);
+          return;
+        }
+      }
+
+      if (!isViewingToday) {
+        if (!confirm('過去日（' + workDate + '）のデータを保存します。\n点検項目構成が現在のマスタに合わせて上書きされます。\n\n続行しますか？')) {
           return;
         }
       }

@@ -1,1 +1,12 @@
-clasp deploy -i [AKfycbwwXS9eJA2HmnO42uwViau2RrQVcHAJl6-30PSih01B2B7Xe9r021i50tnA5qVj9I0H] -d "バグを修正"
+# 製造日報 — デプロイ
+
+## 作業ディレクトリ
+cd "\\hinkan-nas\Hinkan-NAS\製造課（削除禁止）\GASアプリ\製造日報"
+
+## 更新
+clasp push
+clasp deploy -i AKfycbxdfVghWyrDFN5QTqpKRm9OrV4bsnlr0SwHLgsU54Mxw_UUVuvmsPCoSgv1nqjxosFy -d "変更内容"
+
+## 本番デプロイ情報
+デプロイID: AKfycbxdfVghWyrDFN5QTqpKRm9OrV4bsnlr0SwHLgsU54Mxw_UUVuvmsPCoSgv1nqjxosFy（@136）
+WebアプリURL: https://script.google.com/macros/s/AKfycbxdfVghWyrDFN5QTqpKRm9OrV4bsnlr0SwHLgsU54Mxw_UUVuvmsPCoSgv1nqjxosFy/exec
