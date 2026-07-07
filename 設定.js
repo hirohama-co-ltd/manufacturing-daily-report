@@ -167,6 +167,9 @@ function clearMasterCaches_() {
       cache.remove('checkMaster_' + ss.getId());
       cache.remove('workMaster_' + ss.getId());
     }
-    if (MASTER_SS_ID) cache.remove('lineMaster_' + MASTER_SS_ID);
+    if (MASTER_SS_ID) {
+      cache.remove('lineMasterIndex_' + MASTER_SS_ID);
+      cache.remove('lineMaster_' + MASTER_SS_ID);
+    }
   } catch (e) { /* ignore */ }
 }

@@ -66,6 +66,31 @@ function masterRowAppliesToSlot_(applySlots, slot, hinSwitchCount) {
   return false;
 }
 
+function isKnownSensorApplySlot_(slot) {
+  if (SENSOR_SLOTS_BASE.indexOf(slot) >= 0) return true;
+  if (slot === HIN_SWITCH_SLOT_PREFIX) return true;
+  return isHinSwitchSlot_(slot);
+}
+
+/** センサチェックマスタの実施区分を解釈（列ずれ・日付誤読時は全スロットにフォールバック） */
+function resolveSensorApplySlots_(headers, row) {
+  var defaultSlots = SENSOR_SLOTS_BASE.concat([HIN_SWITCH_SLOT_PREFIX]);
+  var applyCol = findMasterColumnIndex_(headers, ['実施区分']);
+  if (applyCol === -1 && headers.length > 2) {
+    var h2 = String(headers[2] || '').replace(/\s/g, '');
+    if (h2.indexOf('改定') < 0 && h2.indexOf('アクション') < 0 && h2.indexOf('旧') < 0) {
+      applyCol = 2;
+    }
+  }
+  var applySlots = applyCol >= 0 ? parseApplySlots_(row[applyCol]) : [];
+  if (!applySlots.length) return defaultSlots.slice();
+  var filtered = [];
+  applySlots.forEach(function(s) {
+    if (isKnownSensorApplySlot_(s) && filtered.indexOf(s) < 0) filtered.push(s);
+  });
+  return filtered.length ? filtered : defaultSlots.slice();
+}
+
 function parseMasterRevisionDate_(cell) {
   if (cell instanceof Date && !isNaN(cell.getTime())) {
     return normalizeWorkDate(cell);
@@ -206,9 +231,10 @@ function loadCheckMasterFromSheet(workDate) {
   var dateKey = normalizeWorkDate(workDate || new Date());
 
   var result = {};
-  loadDailyMaster_(ss, result, dateKey);
-  loadSensorMaster_(ss, result, dateKey);
-  loadRegularMaster_(ss, result, dateKey);
+  var lineIndex = getLineMasterIndex_();
+  loadDailyMaster_(ss, result, dateKey, lineIndex);
+  loadSensorMaster_(ss, result, dateKey, lineIndex);
+  loadRegularMaster_(ss, result, dateKey, lineIndex);
   loadSwitchoverMaster_(ss, result, dateKey);
 
   Object.keys(result).forEach(function(line) {
@@ -218,7 +244,7 @@ function loadCheckMasterFromSheet(workDate) {
   return result;
 }
 
-function loadDailyMaster_(ss, result, workDate) {
+function loadDailyMaster_(ss, result, workDate, lineIndex) {
   var sheet = ss.getSheetByName('日常点検マスタ');
   if (!sheet || sheet.getLastRow() < 2) return;
   var lastCol = Math.max(sheet.getLastColumn(), 2);
@@ -227,46 +253,47 @@ function loadDailyMaster_(ss, result, workDate) {
   var rows = readSheetDataRows_(sheet, lastCol);
   for (var i = 0; i < rows.length; i++) {
     if (!shouldIncludeMasterRow_(headers, rows[i], workDate)) continue;
-    var lineNo = String(rows[i][0]).trim();
     var itemText = String(rows[i][1]).trim();
-    if (!lineNo || !itemText) continue;
+    if (!itemText) continue;
     var rev = getMasterRevisionFields_(headers, rows[i]);
-    var bundle = ensureLineBundle_(result, lineNo);
-    pushUniqueItem_(bundle.daily, newDailyItem_(itemText, rev.prevName));
+    var targets = resolveMasterTargetLines_(rows[i][0], lineIndex);
+    targets.forEach(function(lineNo) {
+      var bundle = ensureLineBundle_(result, lineNo);
+      pushUniqueItem_(bundle.daily, newDailyItem_(itemText, rev.prevName));
+    });
   }
 }
 
-function loadSensorMaster_(ss, result, workDate) {
+function loadSensorMaster_(ss, result, workDate, lineIndex) {
   var sheet = ss.getSheetByName('センサチェックマスタ');
   if (!sheet || sheet.getLastRow() < 2) return;
   var lastCol = Math.max(sheet.getLastColumn(), 3);
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) { return String(h).trim(); });
-  var applyCol = findMasterColumnIndex_(headers, ['実施区分']);
-  if (applyCol === -1) applyCol = 2;
   var rows = readSheetDataRows_(sheet, lastCol);
 
   for (var i = 0; i < rows.length; i++) {
     if (!shouldIncludeMasterRow_(headers, rows[i], workDate)) continue;
-    var lineNo = String(rows[i][0]).trim();
     var itemText = String(rows[i][1]).trim();
-    if (!lineNo || !itemText) continue;
-    var applySlots = applyCol >= 0 ? parseApplySlots_(rows[i][applyCol]) : SENSOR_SLOTS_BASE.concat([HIN_SWITCH_SLOT_PREFIX]);
-    if (!applySlots.length) applySlots = SENSOR_SLOTS_BASE.concat([HIN_SWITCH_SLOT_PREFIX]);
+    if (!itemText) continue;
+    var applySlots = resolveSensorApplySlots_(headers, rows[i]);
     var rev = getMasterRevisionFields_(headers, rows[i]);
-    var bundle = ensureLineBundle_(result, lineNo);
-    ensureHinSwitchSlots_(bundle);
+    var targets = resolveMasterTargetLines_(rows[i][0], lineIndex);
+    targets.forEach(function(lineNo) {
+      var bundle = ensureLineBundle_(result, lineNo);
+      ensureHinSwitchSlots_(bundle);
 
-    SENSOR_SLOTS_BASE.forEach(function(slot) {
-      if (masterRowAppliesToSlot_(applySlots, slot, bundle.hinSwitchCount)) {
-        pushUniqueItem_(bundle.sensorBySlot[slot], newSensorItem_(itemText, rev.prevName));
+      SENSOR_SLOTS_BASE.forEach(function(slot) {
+        if (masterRowAppliesToSlot_(applySlots, slot, bundle.hinSwitchCount)) {
+          pushUniqueItem_(bundle.sensorBySlot[slot], newSensorItem_(itemText, rev.prevName));
+        }
+      });
+      for (var h = 1; h <= bundle.hinSwitchCount; h++) {
+        var hSlot = hinSwitchSlotName_(h);
+        if (masterRowAppliesToSlot_(applySlots, hSlot, bundle.hinSwitchCount)) {
+          pushUniqueItem_(bundle.sensorBySlot[hSlot], newSensorItem_(itemText, rev.prevName));
+        }
       }
     });
-    for (var h = 1; h <= bundle.hinSwitchCount; h++) {
-      var hSlot = hinSwitchSlotName_(h);
-      if (masterRowAppliesToSlot_(applySlots, hSlot, bundle.hinSwitchCount)) {
-        pushUniqueItem_(bundle.sensorBySlot[hSlot], newSensorItem_(itemText, rev.prevName));
-      }
-    }
   }
 }
 
@@ -286,7 +313,7 @@ function loadSwitchoverMaster_(ss, result, workDate) {
   var rows = readSheetDataRows_(sheet, lastCol);
   for (var i = 0; i < rows.length; i++) {
     if (!shouldIncludeMasterRow_(headers, rows[i], workDate)) continue;
-    var lineNo = String(rows[i][0]).trim();
+    var lineNo = normalizeLineKey_(rows[i][0]);
     var itemText = String(rows[i][1]).trim();
     if (!lineNo || !itemText) continue;
     var bundle = ensureLineBundle_(result, lineNo);
@@ -296,7 +323,7 @@ function loadSwitchoverMaster_(ss, result, workDate) {
   }
 }
 
-function loadRegularMaster_(ss, result, workDate) {
+function loadRegularMaster_(ss, result, workDate, lineIndex) {
   var sheet = ss.getSheetByName('定時検査マスタ');
   if (!sheet || sheet.getLastRow() < 2) return;
   var lastCol = Math.max(sheet.getLastColumn(), 4);
@@ -310,19 +337,20 @@ function loadRegularMaster_(ss, result, workDate) {
 
   for (var i = 0; i < rows.length; i++) {
     if (!shouldIncludeMasterRow_(headers, rows[i], workDate)) continue;
-    var lineNo = String(rows[i][0]).trim();
     var itemText = String(rows[i][1]).trim();
-    if (!lineNo || !itemText) continue;
+    if (!itemText) continue;
     var judgeType = judgeCol >= 0 && rows[i][judgeCol] ? String(rows[i][judgeCol]).trim() : '合否';
     var applySlots = applyCol >= 0 ? parseApplySlots_(rows[i][applyCol]) : REGULAR_SLOTS_ALL.slice();
     if (applySlots.length === 0) applySlots = REGULAR_SLOTS_ALL.slice();
     var rev = getMasterRevisionFields_(headers, rows[i]);
-
-    var bundle = ensureLineBundle_(result, lineNo);
-    applySlots.forEach(function(slot) {
-      if (REGULAR_SLOTS_ALL.indexOf(slot) === -1) return;
-      if (!bundle.regularBySlot[slot]) bundle.regularBySlot[slot] = [];
-      pushUniqueItem_(bundle.regularBySlot[slot], newJudgeItem_(itemText, judgeType, rev.prevName));
+    var targets = resolveMasterTargetLines_(rows[i][0], lineIndex);
+    targets.forEach(function(lineNo) {
+      var bundle = ensureLineBundle_(result, lineNo);
+      applySlots.forEach(function(slot) {
+        if (REGULAR_SLOTS_ALL.indexOf(slot) === -1) return;
+        if (!bundle.regularBySlot[slot]) bundle.regularBySlot[slot] = [];
+        pushUniqueItem_(bundle.regularBySlot[slot], newJudgeItem_(itemText, judgeType, rev.prevName));
+      });
     });
   }
 }
@@ -600,7 +628,7 @@ function readCheckResultRows_(sheet, filterDateKey) {
     if (filterDateKey && rowDate !== filterDateKey) continue;
     rows.push({
       workDate: rowDate,
-      line: String(data[i][colMap.line]),
+      line: normalizeLineKey_(data[i][colMap.line]),
       type: String(data[i][colMap.type]),
       slot: hasSlot ? String(data[i][colMap.slot] || '') : '',
       text: String(data[i][colMap.text]),
