@@ -361,6 +361,35 @@ function loadProductionDataForDate(workDate) {
 }
 
 /**
+ * 指定作業日より前の、直近作業日の最終製造品（朝の切替点検用）
+ */
+function loadLastPriorProductForDate(workDate) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('製造実績');
+  if (!sheet) return null;
+  var dateKey = normalizeWorkDate(workDate);
+  var all = readProductRows_(sheet);
+  var priorRows = all.filter(function(r) { return r.workDate && r.workDate < dateKey; });
+  if (!priorRows.length) return null;
+
+  var maxDate = priorRows[0].workDate;
+  for (var i = 1; i < priorRows.length; i++) {
+    if (priorRows[i].workDate > maxDate) maxDate = priorRows[i].workDate;
+  }
+  var onLastDay = priorRows.filter(function(r) { return r.workDate === maxDate; });
+  var completed = onLastDay.filter(function(r) { return r.status === '完了'; });
+  var pick = completed.length ? completed[completed.length - 1] : onLastDay[onLastDay.length - 1];
+  if (!pick) return null;
+
+  return {
+    workDate: maxDate,
+    productCode: pick.productCode || '',
+    productName: pick.productName || '',
+    idName: pick.idName || ''
+  };
+}
+
+/**
  * 共通マスタからライン一覧・グループ情報を読み込む
  * @return {{lineList: string[], capLines: string[], kuchiganeLines: string[]}}
  */

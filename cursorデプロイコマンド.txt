@@ -4,9 +4,18 @@
 cd "\\hinkan-nas\Hinkan-NAS\製造課（削除禁止）\GASアプリ\製造日報"
 
 ## 更新
-clasp push
-clasp deploy -i AKfycbxdfVghWyrDFN5QTqpKRm9OrV4bsnlr0SwHLgsU54Mxw_UUVuvmsPCoSgv1nqjxosFy -d "変更内容"
+clasp push --force
+clasp deploy -i AKfycbxdfVghWyrDFN5QTqpKRm9OrV4bsnlr0SwHLgsU54Mxw_UUVuvmsPCoSgv1nqjxosFy -d "SwitchoverC8"
+
+## 一括デプロイ（推奨）
+deploy.bat をダブルクリック（UNC対策済み）
+
+## 切替点検（C-8 / C-9）マスタ投入
+スプレッドシートを開き、メニュー「製造日報」→
+・「切替点検マスタ（C-8 34項目）を投入」
+・「切替点検マスタ（C-9 44項目）を投入」
+（または マスタデータ/切替点検マスタ_C-8.csv / _C-9.csv を貼り付け）
 
 ## 本番デプロイ情報
-デプロイID: AKfycbxdfVghWyrDFN5QTqpKRm9OrV4bsnlr0SwHLgsU54Mxw_UUVuvmsPCoSgv1nqjxosFy（@136）
+デプロイID: AKfycbxdfVghWyrDFN5QTqpKRm9OrV4bsnlr0SwHLgsU54Mxw_UUVuvmsPCoSgv1nqjxosFy（@149 SwitchoverC9Master）
 WebアプリURL: https://script.google.com/macros/s/AKfycbxdfVghWyrDFN5QTqpKRm9OrV4bsnlr0SwHLgsU54Mxw_UUVuvmsPCoSgv1nqjxosFy/exec
