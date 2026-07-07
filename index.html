@@ -526,6 +526,8 @@
     let productRows = [];
     let currentActiveJob = null;
     let lineCheckData = {};
+    /** サーバー読込時の点検マスタ（ライン切替・下書き復元後もマスタ項目を復元する） */
+    let serverLineCheckMaster_ = {};
     let currentRegEditIndex = null;
     let selectedWorkDate = '';
     let isViewingToday = true;
@@ -739,7 +741,10 @@
       timelineBlocks = normalizeTimelineBlocksClient(timelineBlocks);
       productRows = draft.productRows || [];
       currentActiveJob = draft.currentActiveJob || null;
-      lineCheckData = draft.lineCheckData || {};
+      const draftLines = draft.lineCheckData || {};
+      Object.keys(draftLines).forEach(function(k) {
+        lineCheckData[k] = draftLines[k];
+      });
       Object.keys(preservedSwitchoverMaster).forEach(function(k) {
         const b = ensureLineBundle(k);
         if (!b.switchoverMasterItems || !b.switchoverMasterItems.length) {
@@ -869,7 +874,45 @@
       return minToTime(isNaN(raw) ? START_AXIS_MIN : raw);
     }
 
+    function cloneLineCheckData_(data) {
+      try {
+        return JSON.parse(JSON.stringify(data || {}));
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function cloneLineCheckBundle_(bundle) {
+      return cloneLineCheckData_({ tmp: bundle }).tmp;
+    }
+
+    function lineBundleHasMasterItems_(bundle) {
+      if (!bundle) return false;
+      if ((bundle.daily || []).length > 0) return true;
+      if (Object.keys(bundle.sensorBySlot || {}).some(function(k) {
+        return (bundle.sensorBySlot[k] || []).length > 0;
+      })) return true;
+      if (Object.keys(bundle.regularBySlot || {}).some(function(k) {
+        return (bundle.regularBySlot[k] || []).length > 0;
+      })) return true;
+      if ((bundle.switchoverMasterItems || []).length > 0) return true;
+      return false;
+    }
+
+    function seedLineBundleFromServer_(lineKey) {
+      const serverBundle = serverLineCheckMaster_[lineKey];
+      if (!serverBundle) return;
+      if (!lineCheckData[lineKey]) {
+        lineCheckData[lineKey] = cloneLineCheckBundle_(serverBundle);
+        return;
+      }
+      if (!lineBundleHasMasterItems_(lineCheckData[lineKey])) {
+        lineCheckData[lineKey] = cloneLineCheckBundle_(serverBundle);
+      }
+    }
+
     function ensureLineBundle(lineKey) {
+      seedLineBundleFromServer_(lineKey);
       if (!lineCheckData[lineKey]) {
         lineCheckData[lineKey] = {
           daily: [], sensorBySlot: { '午前': [], '午後': [], '品切1': [] },
@@ -2492,6 +2535,7 @@
           timelineBlocks = normalizeTimelineBlocksClient(timelineBlocks);
           currentActiveJob = res.currentJob || null;
           lineCheckData = res.lineCheckData || {};
+          serverLineCheckMaster_ = cloneLineCheckData_(lineCheckData);
           applyCheckMasterGuideLinks_(res.checkMasterGuideUrl);
 
           if (res.lineList && res.lineList.length > 0) {

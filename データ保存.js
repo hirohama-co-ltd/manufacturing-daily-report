@@ -361,33 +361,55 @@ function loadProductionDataForDate(workDate) {
 }
 
 /**
- * 共通マスタからライン一覧を読み込む
+ * 共通マスタからライン一覧・グループ情報を読み込む
+ * @return {{lineList: string[], capLines: string[], kuchiganeLines: string[]}}
  */
-function loadLineMasterFromSheet() {
-  var defaultLines = ['1号ライン', '2号ライン', '3号ライン'];
-  var cacheKey = 'lineMaster_' + (MASTER_SS_ID || 'default');
+function getLineMasterIndex_() {
+  var cacheKey = 'lineMasterIndex_' + (MASTER_SS_ID || 'default');
   var cached = getCachedJson_(cacheKey);
-  if (cached && cached.length) return cached;
+  if (cached && cached.lineList) return cached;
 
-  if (!MASTER_SS_ID) return defaultLines;
+  var defaultLines = ['1号ライン', '2号ライン', '3号ライン'];
+  var index = { lineList: defaultLines.slice(), capLines: [], kuchiganeLines: [] };
+  if (!MASTER_SS_ID) {
+    putCachedJson_(cacheKey, index);
+    return index;
+  }
   try {
     var masterSs = SpreadsheetApp.openById(MASTER_SS_ID);
     var sheet = masterSs.getSheetByName(LINE_MASTER_SHEET_NAME);
-    if (!sheet) return defaultLines;
-    var lastRow = sheet.getLastRow();
-    if (lastRow < 2) return defaultLines;
-
-    var values = sheet.getRange(2, 1, lastRow, 1).getValues();
-    var lineList = [];
-    for (var i = 0; i < values.length; i++) {
-      var lineName = values[i][0].toString().trim();
-      if (lineName) lineList.push(lineName);
+    if (!sheet || sheet.getLastRow() < 2) {
+      putCachedJson_(cacheKey, index);
+      return index;
     }
-    var result = lineList.length > 0 ? lineList : defaultLines;
-    putCachedJson_(cacheKey, result);
-    return result;
+    var lastCol = Math.max(sheet.getLastColumn(), 1);
+    var values = sheet.getRange(2, 1, sheet.getLastRow(), lastCol).getValues();
+    var lineList = [];
+    var capLines = [];
+    var kuchiganeLines = [];
+    for (var i = 0; i < values.length; i++) {
+      var lineName = normalizeLineKey_(values[i][0]);
+      if (!lineName || isPseudoMasterLineKey_(lineName)) continue;
+      var group = lastCol >= 2 ? normalizeLineGroup_(values[i][1]) : '';
+      lineList.push(lineName);
+      if (group === MASTER_LINE_KEY_CAP) capLines.push(lineName);
+      else if (group === MASTER_LINE_KEY_KUCHIGANE) kuchiganeLines.push(lineName);
+    }
+    if (lineList.length > 0) {
+      index = { lineList: lineList, capLines: capLines, kuchiganeLines: kuchiganeLines };
+    }
+    putCachedJson_(cacheKey, index);
+    return index;
   } catch (e) {
-    return defaultLines;
+    putCachedJson_(cacheKey, index);
+    return index;
   }
+}
+
+/**
+ * 共通マスタからライン一覧を読み込む
+ */
+function loadLineMasterFromSheet() {
+  return getLineMasterIndex_().lineList;
 }
 

@@ -81,6 +81,46 @@ function findMasterColumnIndex_(headers, aliases) {
   return -1;
 }
 
+/** ライン名の表記ゆれを統一（全角ハイフン・余分な空白など） */
+function normalizeLineKey_(raw) {
+  return String(raw || '').trim()
+    .replace(/[\uFF0D\u2212\u2010\u2011\u2013\u2014\uFE58\uFE63]/g, '-')
+    .replace(/\u3000/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+var MASTER_LINE_KEY_ALL = '全';
+var MASTER_LINE_KEY_CAP = 'キャップ';
+var MASTER_LINE_KEY_KUCHIGANE = '口金';
+
+function isPseudoMasterLineKey_(key) {
+  var k = normalizeLineKey_(key);
+  return k === MASTER_LINE_KEY_ALL || k === MASTER_LINE_KEY_CAP || k === MASTER_LINE_KEY_KUCHIGANE;
+}
+
+/** ラインマスタ B列「グループ」（キャップ / 口金） */
+function normalizeLineGroup_(raw) {
+  var g = String(raw || '').trim();
+  if (!g) return '';
+  if (g === 'キャップ' || g === 'ｷｬｯﾌﾟ' || g.toLowerCase() === 'cap') return MASTER_LINE_KEY_CAP;
+  if (g === '口金' || g === 'くちがね') return MASTER_LINE_KEY_KUCHIGANE;
+  return normalizeLineKey_(g);
+}
+
+/**
+ * 点検マスタのライン列 → 展開先の実ライン名配列
+ * 「全」=全ライン、「キャップ」「口金」=ラインマスタのグループ列
+ */
+function resolveMasterTargetLines_(lineRaw, lineIndex) {
+  var key = normalizeLineKey_(lineRaw);
+  if (!key) return [];
+  lineIndex = lineIndex || getLineMasterIndex_();
+  if (key === MASTER_LINE_KEY_ALL) return (lineIndex.lineList || []).slice();
+  if (key === MASTER_LINE_KEY_CAP) return (lineIndex.capLines || []).slice();
+  if (key === MASTER_LINE_KEY_KUCHIGANE) return (lineIndex.kuchiganeLines || []).slice();
+  return [key];
+}
+
 function normalizeEmployeeCode_(raw) {
   var code = normalizeServerCode(raw);
   if (!code) return '';
