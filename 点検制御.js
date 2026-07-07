@@ -91,6 +91,49 @@ function resolveSensorApplySlots_(headers, row) {
   return filtered.length ? filtered : defaultSlots.slice();
 }
 
+function isKnownRegularApplySlot_(slot) {
+  return REGULAR_SLOTS_ALL.indexOf(slot) >= 0;
+}
+
+function normalizeRegularSlotLabel_(label) {
+  var s = String(label || '').trim()
+    .replace(/[０-９]/g, function(ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); });
+  if (!s) return '';
+  if (s === '10' || s === '10:00') return '10時';
+  if (s === '13' || s === '13:00') return '13時';
+  if (s === '15' || s === '15:00') return '15時';
+  if (s === '17' || s === '17:00') return '17時';
+  if (s === '始業' || s === '開始' || s === '開始時') return '始業';
+  if (s === '終業' || s === '終了' || s === '終了時') return '終業';
+  return normalizeSlotLabel_(s);
+}
+
+function parseRegularApplySlots_(raw) {
+  var s = String(raw || '').trim();
+  if (!s) return [];
+  return s.split(/[,、，／\/・\s]+/).map(function(p) {
+    return normalizeRegularSlotLabel_(p.trim());
+  }).filter(Boolean);
+}
+
+/** 定時検査マスタの実施区分を解釈（列ずれ・「追加」誤読時は全スロットにフォールバック） */
+function resolveRegularApplySlots_(headers, row) {
+  var applyCol = findMasterColumnIndex_(headers, ['実施区分']);
+  if (applyCol === -1 && headers.length > 3) {
+    var h3 = String(headers[3] || '').replace(/\s/g, '');
+    if (h3.indexOf('改定') < 0 && h3.indexOf('アクション') < 0 && h3.indexOf('旧') < 0) {
+      applyCol = 3;
+    }
+  }
+  var applySlots = applyCol >= 0 ? parseRegularApplySlots_(row[applyCol]) : [];
+  if (!applySlots.length) return REGULAR_SLOTS_ALL.slice();
+  var filtered = [];
+  applySlots.forEach(function(s) {
+    if (isKnownRegularApplySlot_(s) && filtered.indexOf(s) < 0) filtered.push(s);
+  });
+  return filtered.length ? filtered : REGULAR_SLOTS_ALL.slice();
+}
+
 function parseMasterRevisionDate_(cell) {
   if (cell instanceof Date && !isNaN(cell.getTime())) {
     return normalizeWorkDate(cell);
@@ -310,17 +353,50 @@ function loadSwitchoverMaster_(ss, result, workDate) {
   var lastCol = Math.max(sheet.getLastColumn(), 2);
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0]
     .map(function(h) { return String(h || '').trim(); });
+  var lineCol = findMasterColumnIndex_(headers, ['ライン']);
+  var noCol = findMasterColumnIndex_(headers, ['No', 'NO', '番号']);
+  var sectionCol = findMasterColumnIndex_(headers, ['機械区分', '工程区分']);
+  var itemCol = findMasterColumnIndex_(headers, ['項目']);
+  var judgeCol = findMasterColumnIndex_(headers, ['判定種別']);
+  if (lineCol === -1) lineCol = 0;
+  if (itemCol === -1) itemCol = (noCol >= 0 && sectionCol >= 0) ? 3 : 1;
   var rows = readSheetDataRows_(sheet, lastCol);
+  var defsByLine = {};
   for (var i = 0; i < rows.length; i++) {
     if (!shouldIncludeMasterRow_(headers, rows[i], workDate)) continue;
-    var lineNo = normalizeLineKey_(rows[i][0]);
-    var itemText = String(rows[i][1]).trim();
+    var lineNo = normalizeLineKey_(rows[i][lineCol]);
+    var itemText = String(rows[i][itemCol] || '').trim();
     if (!lineNo || !itemText) continue;
+    var rev = getMasterRevisionFields_(headers, rows[i]);
+    var judgeType = '合否';
+    if (judgeCol >= 0 && rows[i][judgeCol]) {
+      judgeType = String(rows[i][judgeCol]).trim() || '合否';
+    }
+    var itemNo = 0;
+    if (noCol >= 0 && rows[i][noCol] !== '' && rows[i][noCol] != null) {
+      itemNo = parseInt(rows[i][noCol], 10) || 0;
+    }
+    var section = sectionCol >= 0 ? String(rows[i][sectionCol] || '').trim() : '';
+    if (!defsByLine[lineNo]) defsByLine[lineNo] = [];
+    defsByLine[lineNo].push({
+      no: itemNo,
+      section: section,
+      text: itemText,
+      judgeType: judgeType,
+      prevName: rev.prevName || ''
+    });
+  }
+  Object.keys(defsByLine).forEach(function(lineNo) {
+    var defs = defsByLine[lineNo];
+    defs.sort(function(a, b) {
+      if (a.no && b.no && a.no !== b.no) return a.no - b.no;
+      return String(a.text).localeCompare(String(b.text), 'ja');
+    });
     var bundle = ensureLineBundle_(result, lineNo);
     ensureSwitchoverSlots_(bundle);
-    if (!bundle.switchoverMasterItems) bundle.switchoverMasterItems = [];
-    bundle.switchoverMasterItems.push(itemText);
-  }
+    bundle.switchoverMasterDefs = defs;
+    bundle.switchoverMasterItems = defs.map(function(d) { return d.text; });
+  });
 }
 
 function loadRegularMaster_(ss, result, workDate, lineIndex) {
@@ -329,21 +405,24 @@ function loadRegularMaster_(ss, result, workDate, lineIndex) {
   var lastCol = Math.max(sheet.getLastColumn(), 4);
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0]
     .map(function(h) { return String(h || '').trim(); });
+  var lineCol = findMasterColumnIndex_(headers, ['ライン']);
+  var itemCol = findMasterColumnIndex_(headers, ['項目']);
   var judgeCol = findMasterColumnIndex_(headers, ['判定種別']);
-  var applyCol = findMasterColumnIndex_(headers, ['実施区分']);
-  if (judgeCol === -1) judgeCol = 2;
-  if (applyCol === -1) applyCol = 3;
+  if (lineCol === -1) lineCol = 0;
+  if (itemCol === -1) itemCol = 1;
   var rows = readSheetDataRows_(sheet, lastCol);
 
   for (var i = 0; i < rows.length; i++) {
     if (!shouldIncludeMasterRow_(headers, rows[i], workDate)) continue;
-    var itemText = String(rows[i][1]).trim();
+    var itemText = String(rows[i][itemCol] || '').trim();
     if (!itemText) continue;
-    var judgeType = judgeCol >= 0 && rows[i][judgeCol] ? String(rows[i][judgeCol]).trim() : '合否';
-    var applySlots = applyCol >= 0 ? parseApplySlots_(rows[i][applyCol]) : REGULAR_SLOTS_ALL.slice();
-    if (applySlots.length === 0) applySlots = REGULAR_SLOTS_ALL.slice();
+    var judgeType = '合否';
+    if (judgeCol >= 0 && rows[i][judgeCol]) {
+      judgeType = String(rows[i][judgeCol]).trim() || '合否';
+    }
+    var applySlots = resolveRegularApplySlots_(headers, rows[i]);
     var rev = getMasterRevisionFields_(headers, rows[i]);
-    var targets = resolveMasterTargetLines_(rows[i][0], lineIndex);
+    var targets = resolveMasterTargetLines_(rows[i][lineCol], lineIndex);
     targets.forEach(function(lineNo) {
       var bundle = ensureLineBundle_(result, lineNo);
       applySlots.forEach(function(slot) {
@@ -404,16 +483,27 @@ function cloneCheckMasterBundle_(bundle) {
   if (bundle.switchoverMasterItems) {
     cloned.switchoverMasterItems = bundle.switchoverMasterItems.slice();
   }
+  if (bundle.switchoverMasterDefs) {
+    cloned.switchoverMasterDefs = bundle.switchoverMasterDefs.map(function(d) {
+      return {
+        no: d.no,
+        section: d.section,
+        text: d.text,
+        judgeType: d.judgeType,
+        prevName: d.prevName || ''
+      };
+    });
+  }
+  if (bundle.switchoverMetaBySlot) {
+    cloned.switchoverMetaBySlot = {};
+    Object.keys(bundle.switchoverMetaBySlot).forEach(function(slot) {
+      cloned.switchoverMetaBySlot[slot] = Object.assign({}, bundle.switchoverMetaBySlot[slot]);
+    });
+  }
 
   Object.keys(bundle.switchoverBySlot || {}).forEach(function(slot) {
     cloned.switchoverBySlot[slot] = (bundle.switchoverBySlot[slot] || []).map(function(item) {
-      return {
-        text: item.text,
-        value: item.value || '-',
-        recordedAt: item.recordedAt || '',
-        prevName: item.prevName || '',
-        legacy: !!item.legacy
-      };
+      return normalizeSwitchoverItem_(item, item);
     });
   });
   ensureSwitchoverSlots_(cloned);
@@ -474,18 +564,41 @@ function mergeCheckDataWithResults(masterData, workDate) {
     } else if (row.type === 'switchover') {
       var swSlot = slot || switchoverSlotName_(1);
       if (!bundle.switchoverBySlot[swSlot]) bundle.switchoverBySlot[swSlot] = [];
-      applySensorValue_(bundle.switchoverBySlot[swSlot], row.text, row.value, row.recordedAt);
+      if (row.judgeType === '第1') {
+        applySwitchoverInspectorValue_(bundle.switchoverBySlot[swSlot], row.text, 1, row.value, row.recordedAt);
+      } else if (row.judgeType === '第2') {
+        applySwitchoverInspectorValue_(bundle.switchoverBySlot[swSlot], row.text, 2, row.value, row.recordedAt);
+      } else {
+        applySensorValue_(bundle.switchoverBySlot[swSlot], row.text, row.value, row.recordedAt);
+      }
+    } else if (row.type === 'switchover_meta') {
+      applySwitchoverMetaValue_(bundle, slot || switchoverSlotName_(1), row.text, row.value);
     }
   });
 
   Object.keys(masterData || {}).forEach(function(line) {
-    if (!masterData[line] || !masterData[line].switchoverMasterItems || !masterData[line].switchoverMasterItems.length) return;
+    if (!masterData[line]) return;
     var bundle = ensureLineBundle_(result, line);
-    bundle.switchoverMasterItems = masterData[line].switchoverMasterItems.slice();
+    if (masterData[line].switchoverMasterItems && masterData[line].switchoverMasterItems.length) {
+      bundle.switchoverMasterItems = masterData[line].switchoverMasterItems.slice();
+    }
+    if (masterData[line].switchoverMasterDefs && masterData[line].switchoverMasterDefs.length) {
+      bundle.switchoverMasterDefs = masterData[line].switchoverMasterDefs.map(function(d) {
+        return {
+          no: d.no,
+          section: d.section,
+          text: d.text,
+          judgeType: d.judgeType,
+          prevName: d.prevName || ''
+        };
+      });
+    }
+    ensureSwitchoverSlotItemsFromMaster_(bundle);
   });
   Object.keys(result).forEach(function(line) {
     ensureHinSwitchSlots_(result[line]);
     ensureSwitchoverSlots_(result[line]);
+    ensureSwitchoverSlotItemsFromMaster_(result[line]);
   });
   return result;
 }
@@ -601,10 +714,35 @@ function saveCheckResultsForDate_(ss, workDate, lineCheckData) {
 
     Object.keys(bundle.switchoverBySlot || {}).forEach(function(slot) {
       (bundle.switchoverBySlot[slot] || []).forEach(function(item) {
+        if (item.judgeType === 'XO') {
+          newRows.push({
+            workDate: workDate, line: lineName, type: 'switchover', slot: slot,
+            text: item.text, judgeType: '第1',
+            value: String(item.value1 || '-'), recordedAt: item.recordedAt1 || '', variety: ''
+          });
+          newRows.push({
+            workDate: workDate, line: lineName, type: 'switchover', slot: slot,
+            text: item.text, judgeType: '第2',
+            value: String(item.value2 || '-'), recordedAt: item.recordedAt2 || '', variety: ''
+          });
+        } else {
+          newRows.push({
+            workDate: workDate, line: lineName, type: 'switchover', slot: slot,
+            text: item.text, judgeType: '-',
+            value: String(item.value || '-'), recordedAt: item.recordedAt || '', variety: ''
+          });
+        }
+      });
+    });
+
+    Object.keys(bundle.switchoverMetaBySlot || {}).forEach(function(slot) {
+      var meta = bundle.switchoverMetaBySlot[slot] || {};
+      Object.keys(meta).forEach(function(key) {
         newRows.push({
-          workDate: workDate, line: lineName, type: 'switchover', slot: slot,
-          text: item.text, judgeType: '-',
-          value: String(item.value || '-'), recordedAt: item.recordedAt || '', variety: ''
+          workDate: workDate, line: lineName, type: 'switchover_meta', slot: slot,
+          text: key, judgeType: '-',
+          value: String(meta[key] !== undefined && meta[key] !== null ? meta[key] : ''),
+          recordedAt: '', variety: ''
         });
       });
     });
@@ -708,8 +846,12 @@ function buildMatrixRowsFromSlots_(bySlot, slots, includeJudgeType) {
       if (!itemMap[it.text]) {
         itemMap[it.text] = { text: it.text, judgeType: it.judgeType || '', cells: {} };
       }
-      itemMap[it.text].cells[slot] = it.value !== undefined && it.value !== null && it.value !== '' ? String(it.value) : '-';
+      itemMap[it.text].cells[slot] = formatSwitchoverCellValue_(it);
       if (it.recordedAt) itemMap[it.text].cells[slot + '_at'] = it.recordedAt;
+      if (it.judgeType === 'XO') {
+        if (it.recordedAt1) itemMap[it.text].cells[slot + '_at1'] = it.recordedAt1;
+        if (it.recordedAt2) itemMap[it.text].cells[slot + '_at2'] = it.recordedAt2;
+      }
     });
   });
   return Object.keys(itemMap).map(function(k) { return itemMap[k]; });
@@ -801,6 +943,14 @@ function validateCheckMasterRevisions_() {
     var lastCol = sheet.getLastColumn();
     var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0]
       .map(function(h) { return String(h || '').trim(); });
+    if (name === '定時検査マスタ') {
+      if (findMasterColumnIndex_(headers, ['判定種別']) === -1) {
+        warnings.push(name + ': 「判定種別」列がありません（合否扱い。1行目ヘッダーを確認）');
+      }
+      if (findMasterColumnIndex_(headers, ['実施区分']) === -1) {
+        warnings.push(name + ': 「実施区分」列がありません（全タイミング表示。1行目ヘッダーを確認）');
+      }
+    }
     if (findMasterColumnIndex_(headers, ['改定日']) === -1) {
       warnings.push(name + ': 「改定日」列がありません（既存行は全期間有効として扱われます）');
       return;

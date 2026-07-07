@@ -26,6 +26,7 @@ function getCombinedInitialData(workDate) {
     products: prodData.products,
     timeline: prodData.timeline,
     currentJob: prodData.currentJob,
+    lastPriorProduct: loadLastPriorProductForDate(dateKey),
     lineList: lineList,
     lineCheckData: lineCheckData,
     barcodeConfig: getBarcodeConfigForClient(),

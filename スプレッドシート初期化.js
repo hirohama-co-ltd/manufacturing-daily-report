@@ -87,15 +87,9 @@ function initializeSpreadsheet(options) {
     },
     {
       name: '切替点検マスタ',
-      headers: ['ライン', '項目', '改定日', 'アクション', '旧項目名'],
+      headers: SWITCHOVER_MASTER_HEADERS,
       tabColor: '#fbcfe8',
-      samples: addSamples ? [
-        ['1号ライン', '金型・治具の取り外し確認', '2000-01-01', '追加', ''],
-        ['1号ライン', '前品種残材・ラベルの除去確認', '2000-01-01', '追加', ''],
-        ['1号ライン', '切替後の試運転・サンプル確認', '2000-01-01', '追加', ''],
-        ['2号ライン', '金型・治具の取り外し確認', '2000-01-01', '追加', ''],
-        ['2号ライン', '前品種残材・ラベルの除去確認', '2000-01-01', '追加', '']
-      ] : null
+      samples: addSamples ? buildSwitchoverC8MasterSheetRows_().slice(0, 3) : null
     },
     { name: REPORT_SHEET_NAME, headers: ['項目', '内容'], tabColor: '#f1f5f9' }
   ];
@@ -383,7 +377,7 @@ function writeCheckMasterGuideSheet_(ss, forceRewrite) {
     [],
     ['対象シート', '列構成'],
     ['日常点検マスタ', 'ライン / 項目 / 改定日 / アクション / 旧項目名'],
-    ['切替点検マスタ', 'ライン / 項目 / 改定日 / アクション / 旧項目名'],
+    ['切替点検マスタ', 'ライン / No / 機械区分 / 項目 / 判定種別(XO=○×) / 改定日 / アクション / 旧項目名'],
     ['センサチェックマスタ', 'ライン / 項目 / 実施区分 / 改定日 / アクション / 旧項目名'],
     ['定時検査マスタ', 'ライン / 項目 / 判定種別 / 実施区分 / 改定日 / アクション / 旧項目名'],
     ['実施区分', 'センサ: 午前・午後・品切 等（カンマ区切り可）。定時: 始業・10時・13時 等。空欄=全スロット'],
@@ -470,6 +464,8 @@ function onOpen() {
     .addItem('ヘッダーのみ再設定（データ保持）', 'menuResetHeaders')
     .addSeparator()
     .addItem('切替点検マスタシートを作成', 'menuEnsureSwitchoverMasterSheet')
+    .addItem('切替点検マスタ（C-8 34項目）を投入', 'menuImportSwitchoverMasterC8')
+    .addItem('切替点検マスタ（C-9 44項目）を投入', 'menuImportSwitchoverMasterC9')
     .addItem('切替点検マスタの読込確認', 'menuCheckSwitchoverMaster')
     .addItem('点検マスタ改定日の入力チェック', 'menuValidateCheckMasterRevisions')
     .addItem('点検マスタ運用説明を更新', 'menuRefreshCheckMasterGuide')
@@ -489,7 +485,7 @@ function menuEnsureSwitchoverMasterSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var spec = {
     name: '切替点検マスタ',
-    headers: ['ライン', '項目', '改定日', 'アクション', '旧項目名'],
+    headers: SWITCHOVER_MASTER_HEADERS,
     tabColor: '#fbcfe8',
     samples: null
   };
@@ -501,8 +497,9 @@ function menuEnsureSwitchoverMasterSheet() {
   var msg = result.created
     ? '「切替点検マスタ」を新規作成しました。'
     : '「切替点検マスタ」は既にあります。';
-  msg += '\n\nA1=ライン / B1=項目 / C1=改定日 / D1=アクション / E1=旧項目名\n2行目以降に、画面上のライン名と同じ表記で登録してください。\n';
-  msg += '（例: 1号ライン）\n\n登録後は clasp push → clasp deploy 済みの Webアプリを再読み込みしてください。';
+  msg += '\n\nA1=ライン / B1=No / C1=機械区分 / D1=項目 / E1=判定種別 / F1=改定日 / G1=アクション / H1=旧項目名\n';
+  msg += 'C-8 はメニュー「切替点検マスタ（C-8 34項目）を投入」で一括登録できます。\n\n';
+  msg += '登録後は clasp push → clasp deploy 済みの Webアプリを再読み込みしてください。';
   ui.alert('切替点検マスタ', msg, ui.ButtonSet.OK);
 }
 
@@ -513,23 +510,28 @@ function menuCheckSwitchoverMaster() {
   var ui = SpreadsheetApp.getUi();
   var master = loadCheckMasterFromSheet(new Date());
   var lines = Object.keys(master).filter(function(line) {
-    return master[line].switchoverMasterItems && master[line].switchoverMasterItems.length > 0;
+    return (master[line].switchoverMasterItems && master[line].switchoverMasterItems.length > 0)
+      || (master[line].switchoverMasterDefs && master[line].switchoverMasterDefs.length > 0);
   });
   if (lines.length === 0) {
     ui.alert(
       '切替点検マスタ',
       '読み込める項目がありません。\n\n'
         + '・シート名が「切替点検マスタ」か\n'
-        + '・1行目が「ライン」「項目」か\n'
+        + '・1行目が「ライン」「項目」（または No/機械区分/判定種別）か\n'
         + '・2行目以降にデータがあるか\n'
         + '・A列のライン名が Webアプリのライン選択と一致しているか\n\n'
-        + 'を確認してください。',
+        + 'C-8 はメニュー「切替点検マスタ（C-8 34項目）を投入」を実行してください。',
       ui.ButtonSet.OK
     );
     return;
   }
   var detail = lines.map(function(line) {
-    return '・' + line + ' … ' + master[line].switchoverMasterItems.length + ' 項目';
+    var n = master[line].switchoverMasterDefs
+      ? master[line].switchoverMasterDefs.length
+      : master[line].switchoverMasterItems.length;
+    var xo = isSwitchoverXoForm_(master[line]) ? '（XO・2名点検）' : '';
+    return '・' + line + ' … ' + n + ' 項目' + xo;
   }).join('\n');
   ui.alert('切替点検マスタ', '読込 OK:\n' + detail, ui.ButtonSet.OK);
 }

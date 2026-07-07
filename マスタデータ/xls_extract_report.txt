@@ -1,0 +1,3 @@
+﻿C-8: all=38 main=19 rev=2026-04-15 file=切替点検表（Ｃ-8）.xls
+C-9: all=62 main=19 rev=2026-04-15 file=切替点検表  (C-9).xls
+C-16: all=14 main=7 rev=2006-03-30 file=切替点検表（C-16）.xls
