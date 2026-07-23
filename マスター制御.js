@@ -137,6 +137,56 @@ function shouldSkipMasterSheetForProductScan_(sheetName) {
   return false;
 }
 
+var PRODUCT_COLUMN_ALIASES_ = {
+  code: ['製品コード', '品目CD', '品目コード'],
+  name: ['製品名', '品名'],
+  category: ['分類'],
+  qty: ['入数', 'ケース入数', '数量']
+};
+
+function mapProductMasterColumns_(headers) {
+  return {
+    code: findMasterColumnIndex_(headers, PRODUCT_COLUMN_ALIASES_.code),
+    name: findMasterColumnIndex_(headers, PRODUCT_COLUMN_ALIASES_.name),
+    category: findMasterColumnIndex_(headers, PRODUCT_COLUMN_ALIASES_.category),
+    qty: findMasterColumnIndex_(headers, PRODUCT_COLUMN_ALIASES_.qty)
+  };
+}
+
+function lookupProductInMasterSheet_(sheet, targetCodeStr) {
+  if (!sheet) return null;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+
+  var lastCol = Math.max(sheet.getLastColumn(), PRODUCT_MASTER_HEADERS.length);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0]
+    .map(function(h) { return String(h || '').trim(); });
+  var col = mapProductMasterColumns_(headers);
+  if (col.code < 0 || col.name < 0) return null;
+
+  var targetCodeNum = parseInt(targetCodeStr, 10);
+  var values = sheet.getRange(2, 1, lastRow, lastCol).getValues();
+  for (var i = 0; i < values.length; i++) {
+    var rawMasterCode = values[i][col.code];
+    if (!rawMasterCode) continue;
+    var masterCodeStr = normalizeServerCode(String(rawMasterCode));
+    var masterCodeNum = parseInt(masterCodeStr, 10);
+    var masterCodePadded = masterCodeStr.padStart(targetCodeStr.length, '0');
+    var targetCodePadded = targetCodeStr.padStart(masterCodeStr.length, '0');
+    if (masterCodeStr === targetCodeStr || masterCodeStr === targetCodeStr.replace(/^0+/, '') ||
+        masterCodePadded === targetCodeStr || targetCodePadded === masterCodeStr ||
+        (!isNaN(targetCodeNum) && !isNaN(masterCodeNum) && masterCodeNum === targetCodeNum)) {
+      return {
+        productName: String(values[i][col.name] || '品名空欄').trim(),
+        qtyPerCase: col.qty >= 0
+          ? (parseInt(String(values[i][col.qty]).replace(/[^0-9]/g, ''), 10) || 0)
+          : 0
+      };
+    }
+  }
+  return null;
+}
+
 /**
  * 📦 商品マスタとの照合
  */
@@ -149,62 +199,37 @@ function processBarcodeScan(barcodeStr) {
     var targetCodeNum = parseInt(targetCodeStr, 10);
 
     var masterSs = SpreadsheetApp.openById(MASTER_SS_ID);
-    var sheets = masterSs.getSheets();
-    
-    var productName = "未登録品種";
+    var productName = '未登録品種';
     var qtyPerCase = 0;
     var found = false;
 
-    for (var s = 0; s < sheets.length; s++) {
-      var sheet = sheets[s];
-      var sheetName = sheet.getName();
-      if (shouldSkipMasterSheetForProductScan_(sheetName)) continue;
-
-      var mData = sheet.getDataRange().getValues();
-      if (mData.length < 2) continue;
-
-      var idxCode = -1; var idxName = -1; var idxQty = -1;
-      var startRow = 1;
-
-      for (var r = 0; r < Math.min(5, mData.length); r++) {
-        var isHeader = false;
-        for (var c = 0; c < mData[r].length; c++) {
-          var valStr = String(mData[r][c]);
-          if (valStr.indexOf("コード") !== -1 || valStr.indexOf("CD") !== -1 || valStr.indexOf("名") !== -1 || valStr.indexOf("入数") !== -1) {
-            isHeader = true; break;
-          }
-        }
-        if (isHeader) {
-          startRow = r + 1;
-          for (var c = 0; c < mData[r].length; c++) {
-            var h = String(mData[r][c]).replace(/\s/g, "");
-            if (h.indexOf("コード") !== -1 || h.indexOf("CD") !== -1) idxCode = c;
-            else if (h.indexOf("名") !== -1) idxName = c;
-            else if (h.indexOf("入数") !== -1 || h.indexOf("数量") !== -1) idxQty = c;
-          }
-          break;
-        }
-      }
-      if (idxCode === -1 || idxName === -1) continue;
-
-      for (var i = startRow; i < mData.length; i++) {
-        var rawMasterCode = mData[i][idxCode]; if (!rawMasterCode) continue;
-        var masterCodeStr = normalizeServerCode(String(rawMasterCode));
-        var masterCodeNum = parseInt(masterCodeStr, 10);
-        var masterCodePadded = masterCodeStr.padStart(targetCodeStr.length, "0");
-        var targetCodePadded = targetCodeStr.padStart(masterCodeStr.length, "0");
-
-        if (masterCodeStr === targetCodeStr || masterCodeStr === targetCodeStr.replace(/^0+/, "") || masterCodePadded === targetCodeStr || targetCodePadded === masterCodeStr || (!isNaN(targetCodeNum) && !isNaN(masterCodeNum) && masterCodeNum === targetCodeNum)) {
-          productName = String(mData[i][idxName] || "品名空欄").trim();
-          qtyPerCase = (idxQty !== -1) ? (parseInt(String(mData[i][idxQty]).replace(/[^0-9]/g, ""), 10) || 0) : 0;
-          found = true; break;
-        }
-      }
-      if (found) break;
+    var productSheet = masterSs.getSheetByName(PRODUCT_MASTER_SHEET_NAME);
+    var hit = lookupProductInMasterSheet_(productSheet, targetCodeStr);
+    if (hit) {
+      productName = hit.productName;
+      qtyPerCase = hit.qtyPerCase;
+      found = true;
     }
 
     if (!found) {
-      return { success: false, msg: '品目CD「' + targetCodeStr + '」はマスタに登録されていません。' };
+      var sheets = masterSs.getSheets();
+      for (var s = 0; s < sheets.length; s++) {
+        var sheet = sheets[s];
+        var sheetName = sheet.getName();
+        if (sheetName === PRODUCT_MASTER_SHEET_NAME) continue;
+        if (shouldSkipMasterSheetForProductScan_(sheetName)) continue;
+        hit = lookupProductInMasterSheet_(sheet, targetCodeStr);
+        if (hit) {
+          productName = hit.productName;
+          qtyPerCase = hit.qtyPerCase;
+          found = true;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      return { success: false, msg: '製品コード「' + targetCodeStr + '」は製品マスタに登録されていません。' };
     }
 
     var startCaseNo = extractCaseNoFromLabel(barcodeStr);

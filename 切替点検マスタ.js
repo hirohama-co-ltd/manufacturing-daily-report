@@ -3,18 +3,31 @@
 // ========================================
 
 var SWITCHOVER_MASTER_HEADERS = [
-  'ライン', 'No', '機械区分', '項目', '判定種別', '改定日', 'アクション', '旧項目名'
+  'ライン', 'No', '機械区分', '項目', '判定種別', '点検者', '改定日', 'アクション', '旧項目名'
 ];
 
 /** 切替1回分のヘッダ・フッター項目キー */
 var SWITCHOVER_META_FIELD_KEYS = [
   '切替品目_前', '切替品目_後', 'ロット番号_前', 'ロット番号_後',
   '切替開始時刻', '製造開始時刻', '第1点検者', '第2点検者',
-  '丁度生産_個', '丁度生産_余り', '丁度生産_廃棄',
-  '第1点検者結果', '第2点検者結果',
-  'カウンターゼロ', '生産箱数', 'ポケット内',
-  '合否', '発見箇所', '落下品', 'クロスパンチ治具'
+  '第1点検者結果', '第2点検者結果', '発見箇所'
 ];
+
+/** 点検者列の正規化（両方 / 1 / 2） */
+function normalizeSwitchoverInspectorMode_(mode) {
+  var m = String(mode || '').trim();
+  if (m === '1' || m === '第1' || m === '第1のみ') return '1';
+  if (m === '2' || m === '第2' || m === '第2のみ') return '2';
+  return '両方';
+}
+
+function switchoverItemNeedsInspector1_(itemOrDef) {
+  return normalizeSwitchoverInspectorMode_(itemOrDef && itemOrDef.inspectorMode) !== '2';
+}
+
+function switchoverItemNeedsInspector2_(itemOrDef) {
+  return normalizeSwitchoverInspectorMode_(itemOrDef && itemOrDef.inspectorMode) !== '1';
+}
 
 /** 切替点検表（C-8専用）2024-4-15改定 — 34項目 */
 var SWITCHOVER_C8_MASTER_ROWS = [
@@ -112,7 +125,7 @@ function buildSwitchoverC9MasterSheetRows_() {
 
 function buildSwitchoverMasterSheetRowsForLine_(lineKey, masterRows, revisionDate) {
   return masterRows.map(function(row) {
-    return [lineKey, row[0], row[1], row[2], 'XO', revisionDate, '追加', ''];
+    return [lineKey, row[0], row[1], row[2], 'XO', '両方', revisionDate, '追加', ''];
   });
 }
 
@@ -187,9 +200,7 @@ function importSwitchoverMasterC9_(ss, options) {
 function createEmptySwitchoverMeta_() {
   var meta = {};
   SWITCHOVER_META_FIELD_KEYS.forEach(function(k) {
-    if (k === 'カウンターゼロ' || k === 'ポケット内' || k === '落下品' || k === 'クロスパンチ治具') {
-      meta[k] = '-';
-    } else if (k === '第1点検者結果' || k === '第2点検者結果' || k === '合否') {
+    if (k === '第1点検者結果' || k === '第2点検者結果') {
       meta[k] = '-';
     } else {
       meta[k] = '';
@@ -205,6 +216,7 @@ function newSwitchoverItemFromDef_(def, prevName) {
     section: def.section || '',
     text: def.text,
     judgeType: judgeType,
+    inspectorMode: normalizeSwitchoverInspectorMode_(def.inspectorMode),
     value: '-',
     value1: '-',
     value2: '-',
@@ -223,6 +235,7 @@ function normalizeSwitchoverItem_(item, def) {
     section: (def && def.section) || item.section || '',
     text: (def && def.text) || item.text,
     judgeType: judgeType,
+    inspectorMode: normalizeSwitchoverInspectorMode_((def && def.inspectorMode) || item.inspectorMode),
     value: item.value || '-',
     value1: item.value1 !== undefined ? item.value1 : '-',
     value2: item.value2 !== undefined ? item.value2 : '-',
@@ -249,6 +262,67 @@ function isSwitchoverXoForm_(bundle) {
   });
 }
 
+function switchoverItemMergeKey_(itemOrDef) {
+  var no = parseInt(itemOrDef && itemOrDef.no, 10) || 0;
+  if (no > 0) return 'no:' + no;
+  return 'text:' + String((itemOrDef && itemOrDef.text) || '').trim();
+}
+
+function buildSwitchoverPrevLookup_(existing, defs) {
+  var lookup = {};
+  var duplicateTexts = {};
+  (defs || []).forEach(function(d) {
+    var t = String(d.text || '').trim();
+    duplicateTexts[t] = (duplicateTexts[t] || 0) + 1;
+  });
+  (existing || []).forEach(function(it, idx) {
+    lookup[switchoverItemMergeKey_(it)] = it;
+    lookup['idx:' + idx] = it;
+    var t = String(it.text || '').trim();
+    if ((duplicateTexts[t] || 0) <= 1) lookup['text:' + t] = it;
+  });
+  return lookup;
+}
+
+function findPrevSwitchoverItem_(def, index, lookup) {
+  if (!lookup) return null;
+  var no = parseInt(def && def.no, 10) || 0;
+  if (no > 0 && lookup['no:' + no]) return lookup['no:' + no];
+  var t = String((def && def.text) || '').trim();
+  if (lookup['text:' + t]) return lookup['text:' + t];
+  if (lookup['idx:' + index] !== undefined) return lookup['idx:' + index];
+  return null;
+}
+
+/** 点検実績シート保存用（同名項目は No 付き） */
+function formatSwitchoverItemStoredText_(item) {
+  var no = parseInt(item && item.no, 10) || 0;
+  var text = String((item && item.text) || '').trim();
+  if (no > 0) return 'No' + no + ':' + text;
+  return text;
+}
+
+/** 点検実績シート読込用 */
+function parseSwitchoverItemStoredText_(stored) {
+  var s = String(stored || '').trim();
+  var m = /^No(\d+):([\s\S]*)$/.exec(s);
+  if (m) return { no: parseInt(m[1], 10) || 0, text: m[2] };
+  return { no: 0, text: s };
+}
+
+function findSwitchoverListIndex_(list, itemNo, itemText) {
+  var i;
+  if (itemNo > 0) {
+    for (i = 0; i < list.length; i++) {
+      if ((parseInt(list[i].no, 10) || 0) === itemNo) return i;
+    }
+  }
+  for (i = 0; i < list.length; i++) {
+    if (list[i].text === itemText || (list[i].prevName && list[i].prevName === itemText)) return i;
+  }
+  return -1;
+}
+
 function formatSwitchoverCellValue_(item) {
   if (!item) return '-';
   if (item.judgeType === 'XO') {
@@ -266,28 +340,27 @@ function ensureSwitchoverSlotItemsFromMaster_(bundle) {
   for (var i = 1; i <= bundle.switchoverCount; i++) {
     var slot = switchoverSlotName_(i);
     var existing = bundle.switchoverBySlot[slot] || [];
-    var byText = {};
-    existing.forEach(function(it) { byText[it.text] = it; });
-    bundle.switchoverBySlot[slot] = bundle.switchoverMasterDefs.map(function(def) {
-      var prev = byText[def.text];
+    var lookup = buildSwitchoverPrevLookup_(existing, bundle.switchoverMasterDefs);
+    bundle.switchoverBySlot[slot] = bundle.switchoverMasterDefs.map(function(def, index) {
+      var prev = findPrevSwitchoverItem_(def, index, lookup);
       if (prev) return normalizeSwitchoverItem_(prev, def);
       return newSwitchoverItemFromDef_(def, def.prevName || '');
     });
   }
 }
 
-function applySwitchoverInspectorValue_(list, text, inspectorNo, value, recordedAt) {
+function applySwitchoverInspectorValue_(list, itemNo, itemText, inspectorNo, value, recordedAt) {
   var key = inspectorNo === 2 ? 'value2' : 'value1';
   var atKey = inspectorNo === 2 ? 'recordedAt2' : 'recordedAt1';
-  for (var i = 0; i < list.length; i++) {
-    if (list[i].text === text || (list[i].prevName && list[i].prevName === text)) {
-      list[i][key] = value;
-      if (recordedAt) list[i][atKey] = recordedAt;
-      return true;
-    }
+  var idx = findSwitchoverListIndex_(list, itemNo, itemText);
+  if (idx >= 0) {
+    list[idx][key] = value;
+    if (recordedAt) list[idx][atKey] = recordedAt;
+    return true;
   }
   var legacy = {
-    text: text,
+    no: itemNo || 0,
+    text: itemText,
     judgeType: 'XO',
     value: '-',
     value1: inspectorNo === 1 ? value : '-',
@@ -299,6 +372,24 @@ function applySwitchoverInspectorValue_(list, text, inspectorNo, value, recorded
     legacy: true
   };
   list.push(legacy);
+  return true;
+}
+
+function applySwitchoverSimpleValue_(list, itemNo, itemText, value, recordedAt) {
+  var idx = findSwitchoverListIndex_(list, itemNo, itemText);
+  if (idx >= 0) {
+    list[idx].value = value;
+    if (recordedAt) list[idx].recordedAt = recordedAt;
+    return true;
+  }
+  list.push({
+    no: itemNo || 0,
+    text: itemText,
+    value: value,
+    recordedAt: recordedAt || '',
+    prevName: '',
+    legacy: true
+  });
   return true;
 }
 

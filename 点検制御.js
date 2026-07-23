@@ -358,6 +358,7 @@ function loadSwitchoverMaster_(ss, result, workDate) {
   var sectionCol = findMasterColumnIndex_(headers, ['機械区分', '工程区分']);
   var itemCol = findMasterColumnIndex_(headers, ['項目']);
   var judgeCol = findMasterColumnIndex_(headers, ['判定種別']);
+  var inspectorCol = findMasterColumnIndex_(headers, ['点検者', '点検者区分']);
   if (lineCol === -1) lineCol = 0;
   if (itemCol === -1) itemCol = (noCol >= 0 && sectionCol >= 0) ? 3 : 1;
   var rows = readSheetDataRows_(sheet, lastCol);
@@ -377,12 +378,17 @@ function loadSwitchoverMaster_(ss, result, workDate) {
       itemNo = parseInt(rows[i][noCol], 10) || 0;
     }
     var section = sectionCol >= 0 ? String(rows[i][sectionCol] || '').trim() : '';
+    var inspectorMode = '両方';
+    if (inspectorCol >= 0 && rows[i][inspectorCol]) {
+      inspectorMode = normalizeSwitchoverInspectorMode_(rows[i][inspectorCol]);
+    }
     if (!defsByLine[lineNo]) defsByLine[lineNo] = [];
     defsByLine[lineNo].push({
       no: itemNo,
       section: section,
       text: itemText,
       judgeType: judgeType,
+      inspectorMode: inspectorMode,
       prevName: rev.prevName || ''
     });
   }
@@ -490,6 +496,7 @@ function cloneCheckMasterBundle_(bundle) {
         section: d.section,
         text: d.text,
         judgeType: d.judgeType,
+        inspectorMode: d.inspectorMode || '両方',
         prevName: d.prevName || ''
       };
     });
@@ -564,12 +571,13 @@ function mergeCheckDataWithResults(masterData, workDate) {
     } else if (row.type === 'switchover') {
       var swSlot = slot || switchoverSlotName_(1);
       if (!bundle.switchoverBySlot[swSlot]) bundle.switchoverBySlot[swSlot] = [];
+      var parsedSw = parseSwitchoverItemStoredText_(row.text);
       if (row.judgeType === '第1') {
-        applySwitchoverInspectorValue_(bundle.switchoverBySlot[swSlot], row.text, 1, row.value, row.recordedAt);
+        applySwitchoverInspectorValue_(bundle.switchoverBySlot[swSlot], parsedSw.no, parsedSw.text, 1, row.value, row.recordedAt);
       } else if (row.judgeType === '第2') {
-        applySwitchoverInspectorValue_(bundle.switchoverBySlot[swSlot], row.text, 2, row.value, row.recordedAt);
+        applySwitchoverInspectorValue_(bundle.switchoverBySlot[swSlot], parsedSw.no, parsedSw.text, 2, row.value, row.recordedAt);
       } else {
-        applySensorValue_(bundle.switchoverBySlot[swSlot], row.text, row.value, row.recordedAt);
+        applySwitchoverSimpleValue_(bundle.switchoverBySlot[swSlot], parsedSw.no, parsedSw.text, row.value, row.recordedAt);
       }
     } else if (row.type === 'switchover_meta') {
       applySwitchoverMetaValue_(bundle, slot || switchoverSlotName_(1), row.text, row.value);
@@ -589,6 +597,7 @@ function mergeCheckDataWithResults(masterData, workDate) {
           section: d.section,
           text: d.text,
           judgeType: d.judgeType,
+          inspectorMode: d.inspectorMode || '両方',
           prevName: d.prevName || ''
         };
       });
@@ -715,20 +724,25 @@ function saveCheckResultsForDate_(ss, workDate, lineCheckData) {
     Object.keys(bundle.switchoverBySlot || {}).forEach(function(slot) {
       (bundle.switchoverBySlot[slot] || []).forEach(function(item) {
         if (item.judgeType === 'XO') {
-          newRows.push({
-            workDate: workDate, line: lineName, type: 'switchover', slot: slot,
-            text: item.text, judgeType: '第1',
-            value: String(item.value1 || '-'), recordedAt: item.recordedAt1 || '', variety: ''
-          });
-          newRows.push({
-            workDate: workDate, line: lineName, type: 'switchover', slot: slot,
-            text: item.text, judgeType: '第2',
-            value: String(item.value2 || '-'), recordedAt: item.recordedAt2 || '', variety: ''
-          });
+          var storedText = formatSwitchoverItemStoredText_(item);
+          if (switchoverItemNeedsInspector1_(item)) {
+            newRows.push({
+              workDate: workDate, line: lineName, type: 'switchover', slot: slot,
+              text: storedText, judgeType: '第1',
+              value: String(item.value1 || '-'), recordedAt: item.recordedAt1 || '', variety: ''
+            });
+          }
+          if (switchoverItemNeedsInspector2_(item)) {
+            newRows.push({
+              workDate: workDate, line: lineName, type: 'switchover', slot: slot,
+              text: storedText, judgeType: '第2',
+              value: String(item.value2 || '-'), recordedAt: item.recordedAt2 || '', variety: ''
+            });
+          }
         } else {
           newRows.push({
             workDate: workDate, line: lineName, type: 'switchover', slot: slot,
-            text: item.text, judgeType: '-',
+            text: formatSwitchoverItemStoredText_(item), judgeType: '-',
             value: String(item.value || '-'), recordedAt: item.recordedAt || '', variety: ''
           });
         }
@@ -843,14 +857,15 @@ function buildMatrixRowsFromSlots_(bySlot, slots, includeJudgeType) {
   var itemMap = {};
   slots.forEach(function(slot) {
     (bySlot[slot] || []).forEach(function(it) {
-      if (!itemMap[it.text]) {
-        itemMap[it.text] = { text: it.text, judgeType: it.judgeType || '', cells: {} };
+      var rowKey = formatSwitchoverItemStoredText_(it);
+      if (!itemMap[rowKey]) {
+        itemMap[rowKey] = { text: it.text, no: it.no || 0, judgeType: it.judgeType || '', cells: {} };
       }
-      itemMap[it.text].cells[slot] = formatSwitchoverCellValue_(it);
-      if (it.recordedAt) itemMap[it.text].cells[slot + '_at'] = it.recordedAt;
+      itemMap[rowKey].cells[slot] = formatSwitchoverCellValue_(it);
+      if (it.recordedAt) itemMap[rowKey].cells[slot + '_at'] = it.recordedAt;
       if (it.judgeType === 'XO') {
-        if (it.recordedAt1) itemMap[it.text].cells[slot + '_at1'] = it.recordedAt1;
-        if (it.recordedAt2) itemMap[it.text].cells[slot + '_at2'] = it.recordedAt2;
+        if (it.recordedAt1) itemMap[rowKey].cells[slot + '_at1'] = it.recordedAt1;
+        if (it.recordedAt2) itemMap[rowKey].cells[slot + '_at2'] = it.recordedAt2;
       }
     });
   });

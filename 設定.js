@@ -12,6 +12,10 @@ var LINE_MASTER_SHEET_NAME = 'ラインマスタ';
 var EMPLOYEE_MASTER_SHEET_NAME = '社員マスタ';
 var WORKER_MASTER_LEGACY_SHEET = '作業者マスタ';
 
+// 📦 共通マスタ「製品マスタ」（製造日報・検査日報で共用）
+var PRODUCT_MASTER_SHEET_NAME = '製品マスタ';
+var PRODUCT_MASTER_HEADERS = ['製品コード', '製品名', '分類', '入数', 'QR表示'];
+
 // 🏷️ 製品ラベル切り出し（いずれも「何文字目から」= 1始まり）
 // 品目CD: 10文字目から6桁（21桁ラベル／旧実装 substring(9,15) と同等）
 var PRODUCT_CODE_START  = 10;
