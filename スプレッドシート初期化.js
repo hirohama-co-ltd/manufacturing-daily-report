@@ -1,4 +1,5 @@
 /**
+ * @NotOnlyCurrentDoc
  * 製造日報アプリ用スプレッドシートの一括初期化
  *
  * 【実行方法】
@@ -145,7 +146,7 @@ function initializeMasterSpreadsheet(options) {
     throw new Error('設定.gs の MASTER_SS_ID が未設定です。');
   }
 
-  var ss = SpreadsheetApp.openById(MASTER_SS_ID);
+  var ss = openCommonMasterSpreadsheet_();
   var specs = [
     {
       name: LINE_MASTER_SHEET_NAME,
@@ -181,14 +182,36 @@ function initializeMasterSpreadsheet(options) {
     }
   });
 
+  ensureStandardApprovalRouteMasterSheet_(ss, addSamples, forceHeaders);
+
   return '共通マスタ（ID: ' + MASTER_SS_ID + '）を初期化しました。\n\n'
     + '・' + LINE_MASTER_SHEET_NAME + '\n'
     + '・社員マスタ（社員ID・氏名・Email・力量表・QR表示 等）\n'
+    + '・' + STANDARD_APPROVAL_ROUTE_SHEET_NAME + '\n'
     + '・不良マスタ\n'
     + '・' + PRODUCT_MASTER_SHEET_NAME + '（製品コード・製品名・分類・入数・QR表示）\n\n'
     + '【QR表示】A列「社員ID」を QR 化します（= 旧作業者QRコード）。\n'
     + '【統合】既存の作業者マスタがある場合はメニュー「作業者マスタを社員マスタへ統合」を実行。\n'
     + '※ ' + PRODUCT_MASTER_SHEET_NAME + ' の QR表示列（E列）は手動で数式を設定してください。';
+}
+
+/**
+ * 共通マスタ「標準承認ルート」シートのみを用意（既存3マスタの処理とは独立）
+ */
+function ensureStandardApprovalRouteMasterSheet_(ss, addSamples, forceHeaders) {
+  var spec = {
+    name: STANDARD_APPROVAL_ROUTE_SHEET_NAME,
+    headers: STANDARD_APPROVAL_ROUTE_HEADERS,
+    samples: addSamples ? STANDARD_APPROVAL_ROUTE_SAMPLES : null
+  };
+  ensureSheetWithHeaders_(ss, spec, forceHeaders);
+
+  var sheet = ss.getSheetByName(STANDARD_APPROVAL_ROUTE_SHEET_NAME);
+  if (!sheet) return;
+
+  try {
+    sheet.setTabColor('#ddd6fe');
+  } catch (e) { /* ignore */ }
 }
 
 /**
@@ -350,6 +373,7 @@ function writeSetupGuideSheet_(ss, forceRewrite) {
     ['共通マスタ（別ブック）', ''],
     ['作業者マスタ', '（旧）QRコード / 作業者名 → 社員マスタへ統合済み'],
     ['社員マスタ', '社員ID / 氏名 / Email / 有効(I列) / QR表示 / 力量表(新規列・対象)'],
+    ['標準承認ルート', 'ルートID / Step / 役職（STD 標準5段階）'],
     ['不良マスタ', 'QRコード / 不良名 / QR表示'],
     ['ラインマスタ', 'ライン名一覧（B列: グループ=キャップ/口金、C列: 責任者=社員ID）'],
     ['製品マスタ', '製品コード / 製品名 / 分類 / 入数 / QR表示（製造日報・検査日報共用）']
@@ -594,7 +618,8 @@ function menuInitializeMaster() {
   var ui = SpreadsheetApp.getUi();
   var confirm = ui.alert(
     '共通マスタ初期化',
-    '別ブックにラインマスタ・社員マスタ（EMP形式）・不良マスタを作成し、QR表示数式を設定します。\n\n実行しますか？',
+    '別ブックにラインマスタ・社員マスタ・標準承認ルート・不良マスタを作成します。\n'
+      + '※ 実行アカウントが共通マスタ（別ブック）の編集権限を持っている必要があります。\n\n実行しますか？',
     ui.ButtonSet.YES_NO
   );
   if (confirm !== ui.Button.YES) return;
@@ -615,7 +640,7 @@ function mergeWorkerMasterIntoEmployeeMaster() {
     throw new Error('設定.js の MASTER_SS_ID が未設定です。');
   }
 
-  var ss = SpreadsheetApp.openById(MASTER_SS_ID);
+  var ss = openCommonMasterSpreadsheet_();
   ensureEmployeeMasterSheetInCommon_(ss, false);
 
   var empSheet = ss.getSheetByName(EMPLOYEE_MASTER_SHEET_NAME);

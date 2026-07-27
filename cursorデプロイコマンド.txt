@@ -19,3 +19,18 @@ deploy.bat をダブルクリック（UNC対策済み）
 ## 本番デプロイ情報
 デプロイID: AKfycbxdfVghWyrDFN5QTqpKRm9OrV4bsnlr0SwHLgsU54Mxw_UUVuvmsPCoSgv1nqjxosFy（@149 SwitchoverC9Master）
 WebアプリURL: https://script.google.com/macros/s/AKfycbxdfVghWyrDFN5QTqpKRm9OrV4bsnlr0SwHLgsU54Mxw_UUVuvmsPCoSgv1nqjxosFy/exec
+
+## 共通マスタ初期化（別ブック）で openById 権限エラーが出た場合
+※ ブラウザで共通マスタを開けるのに openById だけ失敗する場合、共有ではなく OAuth スコープの問題
+
+1. clasp push で appsscript.json（oauthScopes）を反映済みか確認
+   - spreadsheets.currentonly が無いこと
+   - https://www.googleapis.com/auth/spreadsheets があること
+2. Apps Script → プロジェクトの設定 → Script ID が .clasp.json の scriptId と一致するか
+   （一致しない場合、clasp push 先とメニュー実行先が別プロジェクト）
+3. エディタで initializeMasterSpreadsheet を選択 →「実行」（initializeSpreadsheet ではない）
+   → 承認画面が出たら「許可」（別ブック用 spreadsheets スコープの追加承認）
+4. 承認画面が出ない／改善しない → Google アカウントのサードパーティアプリ権限から
+   この Apps Script プロジェクトを削除し、手順3を再実行
+5. 製造日報 SS のメニュー「共通マスタを初期化（別ブック）」を再実行
+※ Webアプリの再デプロイは不要（メニュー実行のため）

@@ -38,7 +38,7 @@ function processWorkerQRScan(rawCode) {
     var code = normalizeEmployeeCode_(rawCode);
     if (!code || !MASTER_SS_ID) return { success: false };
 
-    var masterSs = SpreadsheetApp.openById(MASTER_SS_ID);
+    var masterSs = openCommonMasterSpreadsheet_();
     var workerSheet = masterSs.getSheetByName(EMPLOYEE_MASTER_SHEET_NAME)
       || masterSs.getSheetByName(WORKER_MASTER_LEGACY_SHEET)
       || masterSs.getSheetByName('作業者');
@@ -198,7 +198,7 @@ function processBarcodeScan(barcodeStr) {
     var targetCodeStr = parseCleanProductCode(barcodeStr);
     var targetCodeNum = parseInt(targetCodeStr, 10);
 
-    var masterSs = SpreadsheetApp.openById(MASTER_SS_ID);
+    var masterSs = openCommonMasterSpreadsheet_();
     var productName = '未登録品種';
     var qtyPerCase = 0;
     var found = false;
@@ -254,7 +254,7 @@ function processDefectQRScan(rawCode) {
   try {
     var cleanCode = normalizeServerCode(rawCode);
     if (!cleanCode) return { success: false, msg: '空の値です' };
-    var masterSs = SpreadsheetApp.openById(MASTER_SS_ID);
+    var masterSs = openCommonMasterSpreadsheet_();
     var sheet = masterSs.getSheetByName("不良マスタ") || masterSs.getSheetByName("不良品マスタ");
     if(!sheet) return { success: true, defectName: cleanCode };
     var mData = sheet.getDataRange().getValues();

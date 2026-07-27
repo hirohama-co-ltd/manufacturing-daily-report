@@ -405,7 +405,7 @@ function getLineMasterIndex_() {
     return index;
   }
   try {
-    var masterSs = SpreadsheetApp.openById(MASTER_SS_ID);
+    var masterSs = openCommonMasterSpreadsheet_();
     var sheet = masterSs.getSheetByName(LINE_MASTER_SHEET_NAME);
     if (!sheet || sheet.getLastRow() < 2) {
       putCachedJson_(cacheKey, index);
