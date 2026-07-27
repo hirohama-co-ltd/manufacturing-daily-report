@@ -1,6 +1,12 @@
+/**
+ * @NotOnlyCurrentDoc
+ */
 // ========================================
 // ⚙️ システム全体共通の設定項目
 // ========================================
+
+/** openById（別ブック）に必要な OAuth スコープ（appsscript.json と一致させる） */
+var OAUTH_SCOPE_SPREADSHEETS = 'https://www.googleapis.com/auth/spreadsheets';
 
 // 📂 共通マスタスプレッドシートのID
 var MASTER_SS_ID = '1FrxPVUeKecY8SXwc5daMxjGT0MzQKZ_toa77PfO4iQo';
@@ -11,6 +17,73 @@ var LINE_MASTER_SHEET_NAME = 'ラインマスタ';
 // 👥 社員マスタ（製造日報の作業者QR・出張旅費精算で共用）
 var EMPLOYEE_MASTER_SHEET_NAME = '社員マスタ';
 var WORKER_MASTER_LEGACY_SHEET = '作業者マスタ';
+
+// 📦 共通マスタ「製品マスタ」（製造日報・検査日報で共用）
+var PRODUCT_MASTER_SHEET_NAME = '製品マスタ';
+var PRODUCT_MASTER_HEADERS = ['製品コード', '製品名', '分類', '入数', 'QR表示'];
+
+/** 標準承認ルート（共通マスタ・社員マスタのロール列と連携予定） */
+var STANDARD_APPROVAL_ROUTE_SHEET_NAME = '標準承認ルート';
+var STANDARD_APPROVAL_ROUTE_HEADERS = ['ルートID', 'Step', '役職'];
+var STANDARD_APPROVAL_ROUTE_SAMPLES = [
+  ['STD', 1, '係長'],
+  ['STD', 2, '課長'],
+  ['STD', 3, '次長'],
+  ['STD', 4, '事業所長'],
+  ['STD', 5, '管理課']
+];
+
+/**
+ * 共通マスタ（別ブック）を開く。
+ * initializeSpreadsheet だけ承認していると spreadsheets.currentonly 相当のままになり
+ * openById が失敗するため、事前に requireScopes で別ブック用スコープを要求する。
+ */
+function openCommonMasterSpreadsheet_() {
+  if (!MASTER_SS_ID) {
+    throw new Error('設定.js の MASTER_SS_ID が未設定です。');
+  }
+
+  // 未承認ならここで実行が止まり承認ダイアログが出る（initializeSpreadsheet とは別の承認が必要な場合あり）
+  ScriptApp.requireScopes(ScriptApp.AuthMode.FULL, [OAUTH_SCOPE_SPREADSHEETS]);
+
+  var id = String(MASTER_SS_ID).trim();
+  try {
+    return SpreadsheetApp.openById(id);
+  } catch (e) {
+    var email = '';
+    try {
+      email = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || '';
+    } catch (ignore) { /* ignore */ }
+
+    var detail = String(e && e.message ? e.message : e);
+    var scriptId = '';
+    try {
+      scriptId = ScriptApp.getScriptId();
+    } catch (ignore2) { /* ignore */ }
+
+    var hint = '';
+    if (/permission|権限|Required permissions|not sufficient|spreadsheets/i.test(detail)) {
+      hint =
+        '別ブック用のスプレッドシート権限が不足しています。\n'
+        + 'Apps Script エディタで initializeMasterSpreadsheet（initializeSpreadsheet ではない）を実行し、'
+        + '表示された承認画面で「許可」してください。\n'
+        + '改善しない場合は Google アカウント → セキュリティ → サードパーティアプリのアクセス権 を開き、'
+        + 'このプロジェクトの権限を削除してから再実行してください。\n\n';
+    }
+
+    throw new Error(
+      '共通マスタ（別ブック）を開けません。\n\n'
+        + hint
+        + '【確認事項】\n'
+        + '1. 実行アカウント（' + (email || '取得不可') + '）で次をブラウザから開けるか\n'
+        + '   https://docs.google.com/spreadsheets/d/' + id + '/edit\n'
+        + '2. Apps Script → プロジェクトの設定 → Script ID が clasp の .clasp.json と一致するか\n'
+        + (scriptId ? '   現在の Script ID: ' + scriptId + '\n' : '')
+        + '3. appsscript.json の oauthScopes に spreadsheets（currentonly ではない）が含まれるか\n\n'
+        + '技術詳細: ' + detail
+    );
+  }
+}
 
 // 🏷️ 製品ラベル切り出し（いずれも「何文字目から」= 1始まり）
 // 品目CD: 10文字目から6桁（21桁ラベル／旧実装 substring(9,15) と同等）

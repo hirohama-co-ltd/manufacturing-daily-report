@@ -1,4 +1,5 @@
 /**
+ * @NotOnlyCurrentDoc
  * 製造日報アプリ用スプレッドシートの一括初期化
  *
  * 【実行方法】
@@ -23,11 +24,11 @@ var CHECK_MASTER_REV_DEFAULTS = ['2000-01-01', '追加', ''];
 
 /** 共通マスタ「社員マスタ」（旧作業者マスタと統合） */
 var EMPLOYEE_MASTER_HEADERS = [
-  '社員ID', '氏名', 'Email', '事業所', '部署', 'ロール', '日当(円)', '有効', 'QR表示'
+  '社員ID', '氏名', 'Email', '事業所', '部署', 'ロール', '日当(円)', '有効', 'QR表示', '力量表'
 ];
 var EMPLOYEE_MASTER_SAMPLES = [
-  ['EMP001', '山田太郎', '', '本社工場', '製造課', '一般', '', '', '有効'],
-  ['EMP002', '鈴木次郎', '', '本社工場', '製造課,品質管理課', '課長,品質管理担当', '', '', '有効']
+  ['EMP001', '山田太郎', '', '本社工場', '製造課', '一般', '', '', '有効', '', '対象'],
+  ['EMP002', '鈴木次郎', '', '本社工場', '製造課,品質管理課', '課長,品質管理担当', '', '', '有効', '', '対象']
 ];
 
 /**
@@ -145,12 +146,12 @@ function initializeMasterSpreadsheet(options) {
     throw new Error('設定.gs の MASTER_SS_ID が未設定です。');
   }
 
-  var ss = SpreadsheetApp.openById(MASTER_SS_ID);
+  var ss = openCommonMasterSpreadsheet_();
   var specs = [
     {
       name: LINE_MASTER_SHEET_NAME,
-      headers: ['ライン名', 'グループ'],
-      samples: addSamples ? [['1号ライン', 'キャップ'], ['2号ライン', '口金'], ['3号ライン', '']] : null
+      headers: ['ライン名', 'グループ', '責任者'],
+      samples: addSamples ? [['1号ライン', 'キャップ', ''], ['2号ライン', '口金', ''], ['3号ライン', '', '']] : null
     },
     {
       name: EMPLOYEE_MASTER_SHEET_NAME,
@@ -165,6 +166,11 @@ function initializeMasterSpreadsheet(options) {
       samples: addSamples ? [['D001', 'キズ'], ['D002', '汚れ']] : null,
       qrSourceCol: 1,
       qrDisplayCol: 3
+    },
+    {
+      name: PRODUCT_MASTER_SHEET_NAME,
+      headers: PRODUCT_MASTER_HEADERS,
+      samples: null
     }
   ];
 
@@ -176,13 +182,36 @@ function initializeMasterSpreadsheet(options) {
     }
   });
 
+  ensureStandardApprovalRouteMasterSheet_(ss, addSamples, forceHeaders);
+
   return '共通マスタ（ID: ' + MASTER_SS_ID + '）を初期化しました。\n\n'
     + '・' + LINE_MASTER_SHEET_NAME + '\n'
-    + '・社員マスタ（社員ID・氏名・Email・権限・QR表示 等）\n'
-    + '・不良マスタ\n\n'
+    + '・社員マスタ（社員ID・氏名・Email・力量表・QR表示 等）\n'
+    + '・' + STANDARD_APPROVAL_ROUTE_SHEET_NAME + '\n'
+    + '・不良マスタ\n'
+    + '・' + PRODUCT_MASTER_SHEET_NAME + '（製品コード・製品名・分類・入数・QR表示）\n\n'
     + '【QR表示】A列「社員ID」を QR 化します（= 旧作業者QRコード）。\n'
     + '【統合】既存の作業者マスタがある場合はメニュー「作業者マスタを社員マスタへ統合」を実行。\n'
-    + '※ 品目マスタはシート名任意。各シートに「品目CD」「品名」「入数」列を用意してください。';
+    + '※ ' + PRODUCT_MASTER_SHEET_NAME + ' の QR表示列（E列）は手動で数式を設定してください。';
+}
+
+/**
+ * 共通マスタ「標準承認ルート」シートのみを用意（既存3マスタの処理とは独立）
+ */
+function ensureStandardApprovalRouteMasterSheet_(ss, addSamples, forceHeaders) {
+  var spec = {
+    name: STANDARD_APPROVAL_ROUTE_SHEET_NAME,
+    headers: STANDARD_APPROVAL_ROUTE_HEADERS,
+    samples: addSamples ? STANDARD_APPROVAL_ROUTE_SAMPLES : null
+  };
+  ensureSheetWithHeaders_(ss, spec, forceHeaders);
+
+  var sheet = ss.getSheetByName(STANDARD_APPROVAL_ROUTE_SHEET_NAME);
+  if (!sheet) return;
+
+  try {
+    sheet.setTabColor('#ddd6fe');
+  } catch (e) { /* ignore */ }
 }
 
 /**
@@ -343,10 +372,11 @@ function writeSetupGuideSheet_(ss, forceRewrite) {
     [],
     ['共通マスタ（別ブック）', ''],
     ['作業者マスタ', '（旧）QRコード / 作業者名 → 社員マスタへ統合済み'],
-    ['社員マスタ', '社員ID(QR) / 氏名 / Email / 権限 / QR表示（製造日報・出張旅費精算共用）'],
+    ['社員マスタ', '社員ID / 氏名 / Email / 有効(I列) / QR表示 / 力量表(新規列・対象)'],
+    ['標準承認ルート', 'ルートID / Step / 役職（STD 標準5段階）'],
     ['不良マスタ', 'QRコード / 不良名 / QR表示'],
-    ['ラインマスタ', 'ライン名一覧（B列: グループ=キャップ/口金）'],
-    ['品目', '任意シート名で品目CD・品名・入数']
+    ['ラインマスタ', 'ライン名一覧（B列: グループ=キャップ/口金、C列: 責任者=社員ID）'],
+    ['製品マスタ', '製品コード / 製品名 / 分類 / 入数 / QR表示（製造日報・検査日報共用）']
   ];
 
   sheet.getRange(1, 1, guide.length, 2).setValues(normalizeGuideRowsTo2Cols_(guide));
@@ -377,13 +407,14 @@ function writeCheckMasterGuideSheet_(ss, forceRewrite) {
     [],
     ['対象シート', '列構成'],
     ['日常点検マスタ', 'ライン / 項目 / 改定日 / アクション / 旧項目名'],
-    ['切替点検マスタ', 'ライン / No / 機械区分 / 項目 / 判定種別(XO=○×) / 改定日 / アクション / 旧項目名'],
+    ['切替点検マスタ', 'ライン / No / 機械区分 / 項目 / 判定種別(XO=○×) / 点検者(両方・1・2) / 改定日 / アクション / 旧項目名'],
     ['センサチェックマスタ', 'ライン / 項目 / 実施区分 / 改定日 / アクション / 旧項目名'],
     ['定時検査マスタ', 'ライン / 項目 / 判定種別 / 実施区分 / 改定日 / アクション / 旧項目名'],
     ['実施区分', 'センサ: 午前・午後・品切 等（カンマ区切り可）。定時: 始業・10時・13時 等。空欄=全スロット'],
     ['ライン', 'Webアプリのライン選択と同じ表記（例: C-8）。共通項目は「全」「キャップ」「口金」も可（下記）'],
     ['ライン共通キー', '日常/センサ/定時マスタのA列に「全」=全ライン、「キャップ」=キャップグループ、「口金」=口金グループの共通項目'],
     ['ラインマスタ B列', 'グループ列に「キャップ」または「口金」を入力（空欄=グループなし）。共通キー展開に使用'],
+    ['ラインマスタ C列', '責任者列に社員ID（EMP形式）を入力。力量表アプリの承認者に使用'],
     [],
     ['改定日・アクション・旧項目名', ''],
     ['改定日', 'この行の変更が有効になる日（yyyy-MM-dd）。空欄は 2000-01-01 扱い'],
@@ -587,7 +618,8 @@ function menuInitializeMaster() {
   var ui = SpreadsheetApp.getUi();
   var confirm = ui.alert(
     '共通マスタ初期化',
-    '別ブックにラインマスタ・社員マスタ（EMP形式）・不良マスタを作成し、QR表示数式を設定します。\n\n実行しますか？',
+    '別ブックにラインマスタ・社員マスタ・標準承認ルート・不良マスタを作成します。\n'
+      + '※ 実行アカウントが共通マスタ（別ブック）の編集権限を持っている必要があります。\n\n実行しますか？',
     ui.ButtonSet.YES_NO
   );
   if (confirm !== ui.Button.YES) return;
@@ -608,7 +640,7 @@ function mergeWorkerMasterIntoEmployeeMaster() {
     throw new Error('設定.js の MASTER_SS_ID が未設定です。');
   }
 
-  var ss = SpreadsheetApp.openById(MASTER_SS_ID);
+  var ss = openCommonMasterSpreadsheet_();
   ensureEmployeeMasterSheetInCommon_(ss, false);
 
   var empSheet = ss.getSheetByName(EMPLOYEE_MASTER_SHEET_NAME);

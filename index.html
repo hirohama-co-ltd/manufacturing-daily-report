@@ -28,16 +28,18 @@
     /* 点検フォーム共通スタイル */
     .check-section { display: flex; flex-direction: column; gap: 8px; }
     .check-title { font-size: 14px; font-weight: bold; color: #1e3a8a; border-left: 4px solid #2563eb; padding-left: 6px; margin-bottom: 4px; }
-    .check-item-row { display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; gap: 10px; }
-    .check-item-text { font-size: 13px; font-weight: bold; color: #334155; flex: 1; }
+    .check-item-row { display: flex; align-items: center; justify-content: flex-start; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; gap: 10px; min-width: 0; }
+    .check-item-action { flex-shrink: 0; display: flex; align-items: center; }
+    .check-item-text { font-size: 13px; font-weight: bold; color: #334155; flex: 1; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
     
-    .check-checkbox { width: 24px; height: 24px; cursor: pointer; }
+    .check-checkbox { width: 24px; height: 24px; cursor: pointer; flex-shrink: 0; }
     
-    .btn-judge-toggle { font-size: 14px; font-weight: bold; padding: 8px 0; border-radius: 6px; border: none; width: 95px; text-align: center; color: white; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: background 0.15s; }
+    .btn-judge-toggle { font-size: 14px; font-weight: bold; padding: 8px 0; border-radius: 6px; border: none; width: 95px; min-width: 95px; text-align: center; color: white; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: background 0.15s; flex-shrink: 0; touch-action: manipulation; }
     .btn-judge-toggle.pass { background: #10b981; }      
     .btn-judge-toggle.fail { background: #ef4444; }      
     .btn-judge-toggle.none { background: #94a3b8; }
     .btn-judge-toggle.skip { background: #64748b; }
+    .btn-judge-toggle:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.25); }
 
     /* 切替点検（C-8 XO・2名点検） */
     .sw-meta-panel { background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
@@ -48,13 +50,14 @@
     .sw-inspector-bar { display: flex; gap: 6px; flex-wrap: wrap; }
     .sw-inspector-bar .slot-btn.active { background: #db2777; color: #fff; border-color: #db2777; }
     .sw-section-header { font-size: 12px; font-weight: bold; color: #9d174d; background: #fce7f3; padding: 6px 8px; border-radius: 4px; margin-top: 6px; }
+    .sw-inspector-tag { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: normal; color: #9d174d; background: #fdf2f8; border: 1px solid #f9a8d4; border-radius: 4px; padding: 1px 5px; vertical-align: middle; }
     .sw-item-no { font-size: 11px; color: #64748b; min-width: 22px; }
-    .sw-dual-cells { display: flex; gap: 4px; align-items: center; }
-    .btn-xo-toggle { font-size: 13px; font-weight: bold; padding: 6px 0; border-radius: 6px; border: none; width: 42px; text-align: center; color: white; cursor: pointer; }
+    .sw-dual-cells { display: flex; gap: 4px; align-items: center; flex-shrink: 0; position: relative; z-index: 1; }
+    .btn-xo-toggle { font-size: 13px; font-weight: bold; padding: 6px 0; border-radius: 6px; border: none; width: 42px; min-width: 42px; min-height: 36px; text-align: center; color: white; cursor: pointer; flex-shrink: 0; touch-action: manipulation; }
     .btn-xo-toggle.xo-none { background: #94a3b8; }
     .btn-xo-toggle.xo-ok { background: #10b981; }
     .btn-xo-toggle.xo-ng { background: #ef4444; }
-    .btn-xo-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-xo-toggle:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.25); }
     .sw-footer-panel { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px; margin-top: 8px; }
     .sw-footer-title { font-size: 12px; font-weight: bold; color: #c2410c; margin-bottom: 6px; }
     .sw-inspector-row { display: flex; gap: 6px; align-items: center; }
@@ -91,7 +94,7 @@
     .btn-warn-overtime { background: #f59e0b; color: white; border: none; padding: 10px 14px; font-weight: bold; border-radius: 6px; cursor: pointer; flex: 1; }
     .btn-warn-end { background: #10b981; color: white; border: none; padding: 10px 14px; font-weight: bold; border-radius: 6px; cursor: pointer; flex: 1; }
     
-    .btn-value-input { background: #2563eb; color: white; border: none; padding: 8px 12px; font-size: 13px; font-weight: bold; border-radius: 6px; cursor: pointer; min-width: 95px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .btn-value-input { background: #2563eb; color: white; border: none; padding: 8px 12px; font-size: 13px; font-weight: bold; border-radius: 6px; cursor: pointer; min-width: 95px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0; }
     .btn-value-input.filled { background: #f59e0b; }
 
     /* 日報実績専用パーツスタイル */
@@ -1003,6 +1006,39 @@
       return lineCheckData[lineKey];
     }
 
+    function normalizeSwitchoverInspectorMode_(mode) {
+      const m = String(mode || '').trim();
+      if (m === '1' || m === '第1' || m === '第1のみ') return '1';
+      if (m === '2' || m === '第2' || m === '第2のみ') return '2';
+      return '両方';
+    }
+
+    function switchoverItemNeedsInspector1_(item) {
+      return normalizeSwitchoverInspectorMode_(item && item.inspectorMode) !== '2';
+    }
+
+    function switchoverItemNeedsInspector2_(item) {
+      return normalizeSwitchoverInspectorMode_(item && item.inspectorMode) !== '1';
+    }
+
+    function switchoverLineNeedsInspector1_(items) {
+      return (items || []).some(switchoverItemNeedsInspector1_);
+    }
+
+    function switchoverLineNeedsInspector2_(items) {
+      return (items || []).some(switchoverItemNeedsInspector2_);
+    }
+
+    function switchoverItemAppliesToInspector_(item, inspectorNo) {
+      return inspectorNo === 2 ? switchoverItemNeedsInspector2_(item) : switchoverItemNeedsInspector1_(item);
+    }
+
+    function switchoverInspectorModeBadgeHtml_(item) {
+      const mode = normalizeSwitchoverInspectorMode_(item && item.inspectorMode);
+      if (mode === '両方') return '';
+      return `<span class="sw-inspector-tag">${mode}のみ</span>`;
+    }
+
     function isSwitchoverXoForm_(bundle) {
       if (!bundle) return false;
       if (bundle.switchoverMasterDefs && bundle.switchoverMasterDefs.length) {
@@ -1018,10 +1054,7 @@
       return {
         '切替品目_前': '', '切替品目_後': '', 'ロット番号_前': '', 'ロット番号_後': '',
         '切替開始時刻': '', '製造開始時刻': '', '第1点検者': '', '第2点検者': '',
-        '丁度生産_個': '', '丁度生産_余り': '', '丁度生産_廃棄': '',
-        '第1点検者結果': '-', '第2点検者結果': '-',
-        'カウンターゼロ': '-', '生産箱数': '', 'ポケット内': '-',
-        '合否': '-', '発見箇所': '', '落下品': '-', 'クロスパンチ治具': '-'
+        '第1点検者結果': '-', '第2点検者結果': '-', '発見箇所': ''
       };
     }
 
@@ -1038,7 +1071,7 @@
         return bundle.switchoverMasterDefs.slice();
       }
       const texts = getSwitchoverMasterItems_(bundle);
-      return texts.map((t, i) => ({ no: i + 1, section: '', text: t, judgeType: '合否', prevName: '' }));
+      return texts.map((t, i) => ({ no: i + 1, section: '', text: t, judgeType: '合否', inspectorMode: '両方', prevName: '' }));
     }
 
     function getSwitchoverMasterItems_(bundle) {
@@ -1060,6 +1093,7 @@
         section: def.section || '',
         text: def.text,
         judgeType,
+        inspectorMode: normalizeSwitchoverInspectorMode_(def.inspectorMode),
         value: '-',
         value1: '-',
         value2: '-',
@@ -1071,26 +1105,65 @@
       };
     }
 
+    function switchoverItemMergeKey_(itemOrDef) {
+      const no = parseInt(itemOrDef && itemOrDef.no, 10) || 0;
+      if (no > 0) return 'no:' + no;
+      return 'text:' + String((itemOrDef && itemOrDef.text) || '').trim();
+    }
+
+    function buildSwitchoverPrevLookup_(existing, defs) {
+      const lookup = {};
+      const duplicateTexts = {};
+      (defs || []).forEach(d => {
+        const t = String(d.text || '').trim();
+        duplicateTexts[t] = (duplicateTexts[t] || 0) + 1;
+      });
+      (existing || []).forEach((it, idx) => {
+        lookup[switchoverItemMergeKey_(it)] = it;
+        lookup['idx:' + idx] = it;
+        const t = String(it.text || '').trim();
+        if ((duplicateTexts[t] || 0) <= 1) lookup['text:' + t] = it;
+      });
+      return lookup;
+    }
+
+    function findPrevSwitchoverItem_(def, index, lookup) {
+      if (!lookup) return null;
+      const no = parseInt(def && def.no, 10) || 0;
+      if (no > 0 && lookup['no:' + no]) return lookup['no:' + no];
+      const t = String((def && def.text) || '').trim();
+      if (lookup['text:' + t]) return lookup['text:' + t];
+      if (lookup['idx:' + index] !== undefined) return lookup['idx:' + index];
+      return null;
+    }
+
+    function normalizeSwitchoverItem_(item, def) {
+      const judgeType = (def && def.judgeType) || item.judgeType || '合否';
+      const normalized = Object.assign(newSwitchoverItemFromDef_(def || item), {
+        value: item.value || '-',
+        value1: item.value1 !== undefined ? item.value1 : '-',
+        value2: item.value2 !== undefined ? item.value2 : '-',
+        recordedAt: item.recordedAt || '',
+        recordedAt1: item.recordedAt1 || '',
+        recordedAt2: item.recordedAt2 || '',
+        prevName: item.prevName || (def && def.prevName) || '',
+        legacy: !!item.legacy
+      });
+      if (judgeType !== 'XO' && normalized.value === '-' && normalized.value1 !== '-') {
+        normalized.value = normalized.value1;
+      }
+      return normalized;
+    }
+
     function ensureSwitchoverSlotItems_(bundle, slotName) {
       if (!bundle.switchoverBySlot) bundle.switchoverBySlot = {};
       const defs = getSwitchoverMasterDefs_(bundle);
       if (!defs.length) return bundle.switchoverBySlot[slotName] || [];
       const existing = bundle.switchoverBySlot[slotName] || [];
-      const byText = {};
-      existing.forEach(it => { byText[it.text] = it; });
-      bundle.switchoverBySlot[slotName] = defs.map(def => {
-        const prev = byText[def.text];
-        if (prev) {
-          return Object.assign(newSwitchoverItemFromDef_(def), {
-            value: prev.value || '-',
-            value1: prev.value1 !== undefined ? prev.value1 : (prev.value || '-'),
-            value2: prev.value2 !== undefined ? prev.value2 : '-',
-            recordedAt: prev.recordedAt || '',
-            recordedAt1: prev.recordedAt1 || '',
-            recordedAt2: prev.recordedAt2 || '',
-            legacy: !!prev.legacy
-          });
-        }
+      const lookup = buildSwitchoverPrevLookup_(existing, defs);
+      bundle.switchoverBySlot[slotName] = defs.map((def, index) => {
+        const prev = findPrevSwitchoverItem_(def, index, lookup);
+        if (prev) return normalizeSwitchoverItem_(prev, def);
         return newSwitchoverItemFromDef_(def);
       });
       return bundle.switchoverBySlot[slotName];
@@ -1116,18 +1189,38 @@
     }
 
     function isSwitchoverInspector1Complete_(items) {
-      return (items || []).every(it => {
+      const targets = (items || []).filter(switchoverItemNeedsInspector1_);
+      if (!targets.length) return true;
+      return targets.every(it => {
         if (it.judgeType !== 'XO') return it.value && it.value !== '-';
         return it.value1 && it.value1 !== '-';
       });
     }
 
-    function isSwitchoverInspector2Editable_(meta) {
-      if (!meta || !String(meta['第1点検者'] || '').trim()) return false;
+    function isSwitchoverInspector2Complete_(items) {
+      const targets = (items || []).filter(switchoverItemNeedsInspector2_);
+      if (!targets.length) return true;
+      return targets.every(it => it.value2 && it.value2 !== '-');
+    }
+
+    function isSwitchoverInspector2Editable_(meta, items) {
+      if (!meta) return false;
+      const needsInsp1 = switchoverLineNeedsInspector1_(items);
+      const needsInsp2 = switchoverLineNeedsInspector2_(items);
+      if (!needsInsp2) return false;
       if (!String(meta['第2点検者'] || '').trim()) return false;
+      if (!needsInsp1) return true;
+      if (!String(meta['第1点検者'] || '').trim()) return false;
       const n1 = String(meta['第1点検者']).trim().toLowerCase();
       const n2 = String(meta['第2点検者']).trim().toLowerCase();
       return n1 !== n2;
+    }
+
+    function ensureActiveSwitchoverInspector_(items) {
+      const needs1 = switchoverLineNeedsInspector1_(items);
+      const needs2 = switchoverLineNeedsInspector2_(items);
+      if (activeSwitchoverInspector === 1 && !needs1 && needs2) activeSwitchoverInspector = 2;
+      if (activeSwitchoverInspector === 2 && !needs2 && needs1) activeSwitchoverInspector = 1;
     }
 
     function prepareSwitchoverMetaFromScan_(lineKey, slot, productRes) {
@@ -1287,7 +1380,7 @@
           return false;
         }
         const items = ensureSwitchoverSlotItems_(bundle, slot);
-        if (isSwitchoverXoForm_(bundle) && !isSwitchoverInspector1Complete_(items)) {
+        if (isSwitchoverXoForm_(bundle) && switchoverLineNeedsInspector1_(items) && !isSwitchoverInspector1Complete_(items)) {
           alert('第2点検者のQR読込前に、第1点検者の全項目入力を完了してください。');
           return false;
         }
@@ -1346,13 +1439,24 @@
       const bundle = ensureLineBundle(lineKey);
       const items = bundle.switchoverBySlot[slot] || [];
       const meta = ensureSwitchoverMeta_(bundle, slot);
+      const needsInsp1 = switchoverLineNeedsInspector1_(items);
+      const needsInsp2 = switchoverLineNeedsInspector2_(items);
       const insp1Done = isSwitchoverInspector1Complete_(items);
-      const insp2Ok = isSwitchoverInspector2Editable_(meta);
+      const insp2Ok = isSwitchoverInspector2Editable_(meta, items);
+      const insp2Ready = (needsInsp1 ? insp1Done : true) && insp2Ok;
       const cur = prefix === 'modal' ? activeSwitchoverInspector : activeSwitchoverInspector;
-      let html = `<button type="button" class="slot-btn ${cur === 1 ? 'active' : ''}" onclick="${prefix === 'modal' ? 'selectSwitchoverInspectorModal(1)' : 'selectSwitchoverInspector(1)'}">第1点検者</button>`;
-      html += `<button type="button" class="slot-btn ${cur === 2 ? 'active' : ''}" ${insp1Done && insp2Ok ? '' : 'disabled style="opacity:0.5;"'} onclick="${prefix === 'modal' ? 'selectSwitchoverInspectorModal(2)' : 'selectSwitchoverInspector(2)'}">第2点検者</button>`;
-      if (cur === 2 && !insp2Ok) {
+      let html = '';
+      if (needsInsp1) {
+        html += `<button type="button" class="slot-btn ${cur === 1 ? 'active' : ''}" onclick="${prefix === 'modal' ? 'selectSwitchoverInspectorModal(1)' : 'selectSwitchoverInspector(1)'}">第1点検者</button>`;
+      }
+      if (needsInsp2) {
+        html += `<button type="button" class="slot-btn ${cur === 2 ? 'active' : ''}" ${insp2Ready ? '' : 'disabled style="opacity:0.5;"'} onclick="${prefix === 'modal' ? 'selectSwitchoverInspectorModal(2)' : 'selectSwitchoverInspector(2)'}">第2点検者</button>`;
+      }
+      if (cur === 2 && needsInsp2 && !insp2Ok) {
         html += `<span style="font-size:11px;color:#b91c1c;">第1完了＋別人の第2点検者名が必要</span>`;
+      }
+      if (!needsInsp1 && !needsInsp2) {
+        html += `<span style="font-size:11px;color:#64748b;">点検対象項目がありません</span>`;
       }
       return html;
     }
@@ -1370,16 +1474,19 @@
           const v = item.value || '-';
           const fn = context === 'modal' ? `cycleSwitchoverCheckModalItem(${i})` : `cycleSwitchoverCheck('${escapeHtml(lineKey)}', '${escapeHtml(slot)}', ${i})`;
           const btnAttrs = checkLocked ? 'disabled style="opacity:0.6;cursor:not-allowed;"' : `onclick="${fn}"`;
-          return `
-            <div class="check-item-row">
-              <div class="check-item-text">🔄 ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}</div>
-              <button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" ${btnAttrs}>${judgeDisplayLabel(v)}</button>
-            </div>`;
+          return checkItemRowHtml_(
+            `<button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" ${btnAttrs}>${judgeDisplayLabel(v)}</button>`,
+            `🔄 ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}`
+          );
         }).join('');
       }
       let html = '';
       let lastSection = '';
+      let visibleCount = 0;
+      const needsInsp1 = switchoverLineNeedsInspector1_(items);
       items.forEach((item, i) => {
+        if (!switchoverItemAppliesToInspector_(item, activeSwitchoverInspector)) return;
+        visibleCount++;
         if (item.section && item.section !== lastSection) {
           lastSection = item.section;
           html += `<div class="sw-section-header">${escapeHtml(item.section)}</div>`;
@@ -1390,18 +1497,19 @@
           ? `cycleSwitchoverXoModalItem(${i}, ${insp})`
           : `cycleSwitchoverXoCheck('${escapeHtml(lineKey)}', '${escapeHtml(slot)}', ${i}, ${insp})`;
         const meta = ensureSwitchoverMeta_(bundle, slot);
-        const canEdit = !checkLocked && (insp === 1 || (insp === 2 && isSwitchoverInspector1Complete_(items) && isSwitchoverInspector2Editable_(meta)));
-        const btnAttrs = canEdit ? `onclick="${fn}"` : 'disabled style="opacity:0.5;cursor:not-allowed;"';
+        const canEdit = !checkLocked && (insp === 1 || (insp === 2 && (needsInsp1 ? isSwitchoverInspector1Complete_(items) : true) && isSwitchoverInspector2Editable_(meta, items)));
+        const btnAttrs = canEdit
+          ? `onclick="${fn}" title="タップで ○ / × / 未選択"`
+          : 'disabled title="第1点検完了・点検者名入力後に操作できます"';
         const at = insp === 2 ? item.recordedAt2 : item.recordedAt1;
-        html += `
-          <div class="check-item-row">
-            <div class="check-item-text"><span class="sw-item-no">${item.no || ''}.</span> ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}${at ? `<br><span style="font-size:10px;color:#64748b;">記録 ${escapeHtml(at)}</span>` : ''}</div>
-            <div class="sw-dual-cells">
-              <span style="font-size:10px;color:#64748b;">${insp === 1 ? '1' : '2'}</span>
-              <button type="button" class="btn-xo-toggle ${xoStatusClass(v)}" ${btnAttrs}>${xoDisplayLabel(v)}</button>
-            </div>
-          </div>`;
+        html += checkItemRowHtml_(
+          `<button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" ${btnAttrs}>${judgeDisplayLabel(v)}</button>`,
+          `<span class="sw-item-no">${item.no || ''}.</span> ${escapeHtml(item.text)}${switchoverInspectorModeBadgeHtml_(item)}${checkItemLegacyBadgeHtml_(item)}${at ? `<br><span style="font-size:10px;color:#64748b;">記録 ${escapeHtml(at)}</span>` : ''}`
+        );
       });
+      if (!visibleCount) {
+        return `<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">第${activeSwitchoverInspector}点検者の対象項目はありません。<br>マスタの「点検者」列（1 / 2 / 両方）を確認してください。</div>`;
+      }
       return html;
     }
 
@@ -1412,24 +1520,12 @@
       const pfBtn = editable
         ? (k) => `onclick="cycleSwitchoverFooterPf_('${escapeHtml(lineKey)}','${escapeHtml(slot)}','${k}')"`
         : () => 'disabled style="opacity:0.6;cursor:not-allowed;"';
-      const xoBtn = editable
-        ? (k) => `onclick="cycleSwitchoverFooterXo_('${escapeHtml(lineKey)}','${escapeHtml(slot)}','${k}')"`
-        : () => 'disabled style="opacity:0.6;cursor:not-allowed;"';
       return `
         <div class="sw-footer-panel">
           <div class="sw-footer-title">最終確認（フッター）</div>
           <div class="sw-meta-grid">
-            <div class="sw-meta-field"><label>丁度生産（個）</label><input type="number" ${dis} value="${escapeHtml(meta['丁度生産_個'] || '')}" ${on('丁度生産_個')}></div>
-            <div class="sw-meta-field"><label>余り</label><input type="number" ${dis} value="${escapeHtml(meta['丁度生産_余り'] || '')}" ${on('丁度生産_余り')}></div>
-            <div class="sw-meta-field"><label>廃棄</label><input type="number" ${dis} value="${escapeHtml(meta['丁度生産_廃棄'] || '')}" ${on('丁度生産_廃棄')}></div>
-            <div class="sw-meta-field"><label>生産箱数</label><input type="number" ${dis} value="${escapeHtml(meta['生産箱数'] || '')}" ${on('生産箱数')}></div>
             <div class="sw-meta-field"><label>第1結果</label><button type="button" class="btn-judge-toggle ${judgeStatusClass(meta['第1点検者結果'])}" ${pfBtn('第1点検者結果')}>${judgeDisplayLabel(meta['第1点検者結果'])}</button></div>
             <div class="sw-meta-field"><label>第2結果</label><button type="button" class="btn-judge-toggle ${judgeStatusClass(meta['第2点検者結果'])}" ${pfBtn('第2点検者結果')}>${judgeDisplayLabel(meta['第2点検者結果'])}</button></div>
-            <div class="sw-meta-field"><label>カウンターゼロ</label><button type="button" class="btn-xo-toggle ${xoStatusClass(meta['カウンターゼロ'])}" ${xoBtn('カウンターゼロ')}>${xoDisplayLabel(meta['カウンターゼロ'])}</button></div>
-            <div class="sw-meta-field"><label>ポケット内</label><button type="button" class="btn-xo-toggle ${xoStatusClass(meta['ポケット内'])}" ${xoBtn('ポケット内')}>${xoDisplayLabel(meta['ポケット内'])}</button></div>
-            <div class="sw-meta-field"><label>落下品</label><button type="button" class="btn-xo-toggle ${xoStatusClass(meta['落下品'])}" ${xoBtn('落下品')}>${xoDisplayLabel(meta['落下品'])}</button></div>
-            <div class="sw-meta-field"><label>クロスパンチ治具</label><button type="button" class="btn-xo-toggle ${xoStatusClass(meta['クロスパンチ治具'])}" ${xoBtn('クロスパンチ治具')}>${xoDisplayLabel(meta['クロスパンチ治具'])}</button></div>
-            <div class="sw-meta-field"><label>合否</label><button type="button" class="btn-judge-toggle ${judgeStatusClass(meta['合否'])}" ${pfBtn('合否')}>${judgeDisplayLabel(meta['合否'])}</button></div>
             <div class="sw-meta-field full"><label>発見箇所</label><input ${dis} value="${escapeHtml(meta['発見箇所'] || '')}" ${on('発見箇所')}></div>
           </div>
         </div>`;
@@ -1454,12 +1550,16 @@
     function cycleSwitchoverXoCheck(lineKey, slot, idx, inspectorNo) {
       if (isCheckEditingLocked_()) return;
       const bundle = ensureLineBundle(lineKey);
-      const items = bundle.switchoverBySlot[slot] || [];
+      const items = ensureSwitchoverSlotItems_(bundle, slot);
       const item = items[idx];
       if (!item) return;
       const meta = ensureSwitchoverMeta_(bundle, slot);
-      if (inspectorNo === 2 && (!isSwitchoverInspector1Complete_(items) || !isSwitchoverInspector2Editable_(meta))) {
+      if (inspectorNo === 2 && ((switchoverLineNeedsInspector1_(items) && !isSwitchoverInspector1Complete_(items)) || !isSwitchoverInspector2Editable_(meta, items))) {
         alert('第1点検者の全項目入力と、別人の第2点検者名が必要です。');
+        return;
+      }
+      if (!switchoverItemAppliesToInspector_(item, inspectorNo)) {
+        alert(`この項目は第${inspectorNo}点検者の対象外です。`);
         return;
       }
       if (inspectorNo === 2) {
@@ -1484,13 +1584,21 @@
         return { ok: true, message: '' };
       }
       const meta = ensureSwitchoverMeta_(bundle, slot);
-      if (!String(meta['第1点検者'] || '').trim()) return { ok: false, message: '第1点検者名を入力してください。' };
-      if (!String(meta['第2点検者'] || '').trim()) return { ok: false, message: '第2点検者名を入力してください。' };
-      if (!isSwitchoverInspector2Editable_(meta)) return { ok: false, message: '第2点検者は第1点検者と別の方である必要があります。' };
-      const miss1 = items.filter(it => !it.value1 || it.value1 === '-');
-      if (miss1.length) return { ok: false, message: '第1点検者の未入力項目があります。' };
-      const miss2 = items.filter(it => !it.value2 || it.value2 === '-');
-      if (miss2.length) return { ok: false, message: '第2点検者の未入力項目があります。' };
+      const needsInsp1 = switchoverLineNeedsInspector1_(items);
+      const needsInsp2 = switchoverLineNeedsInspector2_(items);
+      if (needsInsp1) {
+        if (!String(meta['第1点検者'] || '').trim()) return { ok: false, message: '第1点検者名を入力してください。' };
+        const miss1 = items.filter(it => switchoverItemNeedsInspector1_(it) && (!it.value1 || it.value1 === '-'));
+        if (miss1.length) return { ok: false, message: '第1点検者の未入力項目があります。' };
+      }
+      if (needsInsp2) {
+        if (!String(meta['第2点検者'] || '').trim()) return { ok: false, message: '第2点検者名を入力してください。' };
+        if (needsInsp1 && !isSwitchoverInspector2Editable_(meta, items)) {
+          return { ok: false, message: '第2点検者は第1点検者と別の方である必要があります。' };
+        }
+        const miss2 = items.filter(it => switchoverItemNeedsInspector2_(it) && (!it.value2 || it.value2 === '-'));
+        if (miss2.length) return { ok: false, message: '第2点検者の未入力項目があります。' };
+      }
       return { ok: true, message: '' };
     }
 
@@ -1533,8 +1641,8 @@
     }
 
     function judgeStatusClass(val) {
-      if (val === '合格' || val === '済') return 'pass';
-      if (val === '不合格') return 'fail';
+      if (val === '合格' || val === '済' || val === '○') return 'pass';
+      if (val === '不合格' || val === '×') return 'fail';
       if (val === '不要') return 'skip';
       return 'none';
     }
@@ -1987,6 +2095,10 @@
       });
     }
 
+    function checkItemRowHtml_(actionHtml, textHtml) {
+      return `<div class="check-item-row"><div class="check-item-action">${actionHtml}</div><div class="check-item-text">${textHtml}</div></div>`;
+    }
+
     function checkItemLegacyBadgeHtml_(item) {
       if (!item || !item.legacy) return '';
       return '<span style="font-size:10px;color:#92400e;background:#fef3c7;padding:1px 4px;border-radius:3px;margin-left:4px;">旧</span>';
@@ -1997,12 +2109,12 @@
 
       const checkLocked = isCheckEditingLocked_();
       const dailyArea = document.getElementById("dailyCheckListArea");
-      dailyArea.innerHTML = (bundle.daily || []).map((item, i) => `
-        <div class="check-item-row">
-          <div class="check-item-text">◽️ ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}</div>
-          <input type="checkbox" class="check-checkbox" ${item.value ? 'checked' : ''} ${checkLocked ? 'disabled' : ''} onchange="toggleDailyCheck('${escapeHtml(lineKey)}', ${i}, this.checked)">
-        </div>
-      `).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">項目が設定されていません。</div>';
+      dailyArea.innerHTML = (bundle.daily || []).map((item, i) =>
+        checkItemRowHtml_(
+          `<input type="checkbox" class="check-checkbox" ${item.value ? 'checked' : ''} ${checkLocked ? 'disabled' : ''} onchange="toggleDailyCheck('${escapeHtml(lineKey)}', ${i}, this.checked)">`,
+          `◽️ ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}`
+        )
+      ).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">項目が設定されていません。</div>';
 
       const sensorSlots = getSensorSlotList(bundle);
       if (!sensorSlots.includes(activeSensorSlot)) activeSensorSlot = sensorSlots[0];
@@ -2016,11 +2128,10 @@
       document.getElementById("sensorCheckListArea").innerHTML = sensorItems.map((item, i) => {
         const v = item.value || '-';
         const btnAttrs = checkLocked ? 'disabled style="opacity:0.6;cursor:not-allowed;"' : `onclick="cycleSensorCheck('${escapeHtml(lineKey)}', '${escapeHtml(activeSensorSlot)}', ${i})"`;
-        return `
-          <div class="check-item-row">
-            <div class="check-item-text">⚡ ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}${item.recordedAt ? `<br><span style="font-size:10px;color:#64748b;">記録 ${escapeHtml(item.recordedAt)}</span>` : ''}</div>
-            <button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" ${btnAttrs}>${judgeDisplayLabel(v)}</button>
-          </div>`;
+        return checkItemRowHtml_(
+          `<button type="button" class="btn-judge-toggle ${judgeStatusClass(v)}" ${btnAttrs}>${judgeDisplayLabel(v)}</button>`,
+          `⚡ ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}${item.recordedAt ? `<br><span style="font-size:10px;color:#64748b;">記録 ${escapeHtml(item.recordedAt)}</span>` : ''}`
+        );
       }).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">この回の項目がありません。</div>';
 
       const swSlots = getSwitchoverSlotList(bundle);
@@ -2047,6 +2158,7 @@
       } else {
         const slot = activeSwitchoverSlot;
         ensureSwitchoverSlotItems_(bundle, slot);
+        ensureActiveSwitchoverInspector_(bundle.switchoverBySlot[slot] || []);
         if (swMeta) swMeta.innerHTML = xoForm ? renderSwitchoverMetaHtml_(lineKey, slot, 'tab', !checkLocked) : '';
         if (swInsp) swInsp.innerHTML = xoForm ? renderSwitchoverInspectorBarHtml_(lineKey, slot, 'tab') : '';
         if (swArea) swArea.innerHTML = renderSwitchoverItemsHtml_(lineKey, slot, 'tab');
@@ -2069,7 +2181,10 @@
           const btnAttrs = checkLocked ? 'disabled style="opacity:0.6;cursor:not-allowed;"' : `onclick="openRegularValueModal('${escapeHtml(activeRegularSlot)}', ${i})"`;
           inputPart = `<button type="button" class="btn-value-input ${hasValue ? 'filled' : ''}" ${btnAttrs}>${escapeHtml(btnText)}</button>`;
         }
-        return `<div class="check-item-row"><div class="check-item-text">⏱️ ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}</div><div>${inputPart}</div></div>`;
+        return checkItemRowHtml_(
+          inputPart,
+          `⏱️ ${escapeHtml(item.text)}${checkItemLegacyBadgeHtml_(item)}`
+        );
       }).join('') || '<div style="font-size:12px; color:#64748b; text-align:center; padding:10px;">この回の項目がありません。</div>';
     }
 
@@ -2850,6 +2965,7 @@
       switchoverModalEditSlot = slot;
       activeSwitchoverInspector = 1;
       ensureSwitchoverSlotItems_(bundle, slot);
+      ensureActiveSwitchoverInspector_(bundle.switchoverBySlot[slot] || []);
       if (pendingProductScan) prepareSwitchoverMetaFromScan_(lineKey, slot, pendingProductScan);
       const xoForm = isSwitchoverXoForm_(bundle);
       const hint = document.getElementById('switchoverCheckModalHint');
